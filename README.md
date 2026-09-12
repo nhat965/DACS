@@ -2,6 +2,39 @@
 
 Đồ án cơ sở xây dựng website thương mại điện tử mỹ phẩm, tập trung vào trải nghiệm mua sắm dễ sử dụng và hệ thống gợi ý sản phẩm cá nhân hóa dựa trên nhu cầu và hành vi khách hàng.
 
+## Cấu trúc source
+
+Dự án được tổ chức theo hướng monorepo để nhóm có thể chia việc rõ ràng nhưng vẫn tích hợp được thành một hệ thống thống nhất.
+
+```text
+DACS/
+  apps/
+    web/                         # Website thương mại điện tử, UI khách hàng và admin
+  services/
+    recommendation-service/      # Hệ thống gợi ý sản phẩm
+    chatbot-service/             # Chatbot tư vấn dựa trên dữ liệu hệ thống
+    analytics-service/           # Phân tích dữ liệu, dashboard metrics
+    stream-analytics-service/    # Xử lý sự kiện thời gian gần thực
+  packages/
+    shared-contracts/            # DTO, enum, schema dùng chung nếu cần
+  contracts/
+    openapi/                     # API contract giữa website và hệ thống bên trong
+    events/                      # Event contract cho behavior tracking/streaming
+  database/
+    migrations/                  # SQL migration
+    seeds/                       # Dữ liệu mẫu
+    docs/                        # ERD, data dictionary, quy tắc dữ liệu
+  datasets/
+    product-catalog/             # Dataset sản phẩm mỹ phẩm
+    raw/                         # Dữ liệu thô
+    processed/                   # Dữ liệu đã làm sạch
+  docs/
+    architecture/                # Kiến trúc, phân công, luồng tích hợp
+    phase-1/                     # Tài liệu Giai đoạn 1
+```
+
+Phần website có thể phát triển độc lập trong `apps/web`. Phần hệ thống bên trong như recommendation, chatbot, analytics, database và stream analytics được phát triển trong `services`, `database`, `datasets` và `contracts`. Hai phần liên kết với nhau thông qua REST API, event tracking và cơ sở dữ liệu đã thống nhất.
+
 ## 1. Thông tin đề tài
 
 - Tên đề tài: Xây dựng website thương mại điện tử mỹ phẩm tích hợp hệ thống gợi ý sản phẩm lai cá nhân hóa và chatbot tư vấn dựa trên dữ liệu hệ thống
@@ -56,23 +89,23 @@
 ## 4. Kiến trúc dự kiến
 
 ```text
-Web Client
+apps/web
     |
-Backend API
+    | REST API + Behavior Events
+    v
+Backend API / API Gateway
     |
-    +-- User and Auth Module
-    +-- Product Module
-    +-- Cart and Order Module
-    +-- Behavior Tracking
-    +-- User Profile Service
-    +-- Recommendation Engine
-    |       +-- Knowledge-Based
-    |       +-- Content-Based
-    |       +-- Item-Based Collaborative Filtering
-    |       +-- Hybrid Scoring
-    +-- Rule-Based Consultation Service
+    +-- Ecommerce Modules
+    |       +-- User/Auth
+    |       +-- Product/Catalog
+    |       +-- Cart/Order
     |
-MySQL Database
+    +-- Internal System Services
+            +-- Recommendation Service
+            +-- Chatbot Service
+            +-- Analytics Service
+            +-- Stream Analytics Service
+            +-- Database and Dataset Pipeline
 ```
 
 Chatbot tư vấn cơ bản hoạt động bằng cách phân tích từ khóa hoặc lựa chọn của người dùng, truy vấn dữ liệu sản phẩm và tạo câu trả lời theo mẫu. Chatbot không tự tạo sản phẩm hoặc công dụng ngoài dữ liệu đã được kiểm duyệt.

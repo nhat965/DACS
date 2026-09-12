@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Cosmetic Ecommerce Internal System API
+  version: 0.1.0
+  description: API contract between the website and internal recommendation, chatbot, analytics, and behavior tracking systems.
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /behavior-events:
+    post:
+      summary: Track a user behavior event
+      tags: [Behavior Tracking]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BehaviorEventRequest"
+      responses:
+        "202":
+          description: Event accepted
+  /recommendations/personalized:
+    post:
+      summary: Get personalized product recommendations
+      tags: [Recommendation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationRequest"
+      responses:
+        "200":
+          description: Recommendation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+  /recommendations/similar-products/{productId}:
+    get:
+      summary: Get products similar to a selected product
+      tags: [Recommendation]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Similar product result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+  /chatbot/messages:
+    post:
+      summary: Send a message to the consultation chatbot
+      tags: [Chatbot]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatbotMessageRequest"
+      responses:
+        "200":
+          description: Chatbot response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatbotMessageResponse"
+  /analytics/dashboard-summary:
+    get:
+      summary: Get admin dashboard summary metrics
+      tags: [Analytics]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummaryResponse"
+components:
+  schemas:
+    BehaviorEventRequest:
+      type: object
+      required: [eventType, occurredAt]
+      properties:
+        userId:
+          type: integer
+          nullable: true
+        sessionId:
+          type: string
+        productId:
+          type: integer
+          nullable: true
+        eventType:
+          type: string
+          enum:
+            - view_product
+            - search_keyword
+            - filter_used
+            - click_recommendation
+            - add_favorite
+            - add_to_cart
+            - remove_from_cart
+            - place_order
+            - review_product
+            - chatbot_message
+        eventValue:
+          type: number
+          format: double
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        occurredAt:
+          type: string
+          format: date-time
+    RecommendationRequest:
+      type: object
+      properties:
+        userId:
+          type: integer
+          nullable: true
+        sessionId:
+          type: string
+        limit:
+          type: integer
+          default: 10
+        context:
+          type: object
+          properties:
+            skinType:
+              type: string
+            skinConcerns:
+              type: array
+              items:
+                type: string
+            budgetMin:
+              type: number
+            budgetMax:
+              type: number
+            preferredCategories:
+              type: array
+              items:
+                type: string
+            avoidIngredients:
+              type: array
+              items:
+                type: string
+    RecommendedProduct:
+      type: object
+      properties:
+        productId:
+          type: integer
+        score:
+          type: number
+          format: double
+        reasons:
+          type: array
+          items:
+            type: string
+    RecommendationResponse:
+      type: object
+      properties:
+        algorithm:
+          type: string
+          example: hybrid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendedProduct"
+    ChatbotMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        userId:
+          type: integer
+          nullable: true
+        sessionId:
+          type: string
+        message:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+    ChatbotMessageResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        suggestedProductIds:
+          type: array
+          items:
+            type: integer
+        safetyNote:
+          type: string
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+        totalOrders:
+          type: integer
+        conversionRate:
+          type: number
+        recommendationClickRate:
+          type: number
+        topProducts:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: integer
+              productName:
+                type: string
+              metricValue:
+                type: number
