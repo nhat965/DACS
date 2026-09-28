@@ -1,0 +1,44 @@
+[
+  {
+    "product_name_raw": "Hydrating Serum 30 ml",
+    "sku_raw": "TEST-001",
+    "brand_raw": "Example Brand",
+    "category_raw": "serum",
+    "price_raw": "350.000 ₫",
+    "currency_raw": "VND",
+    "volume_raw": "30 ml",
+    "description_raw": "Hydrating facial serum.",
+    "benefits_raw": "Hydrates and soothes skin.",
+    "ingredients_raw": "Water, Glycerin, Panthenol",
+    "key_ingredients_raw": "Glycerin; Panthenol",
+    "skin_types_raw": "dry;sensitive",
+    "skin_concerns_raw": "dryness;redness",
+    "care_goals_raw": "hydrate;soothe",
+    "texture_raw": "serum",
+    "usage_raw": "Apply after cleansing.",
+    "warnings_raw": "Stop use if irritation occurs.",
+    "image_urls_raw": ["https://example.com/a.jpg"],
+    "product_url": "https://example.com/products/a",
+    "source_name": "Example Official",
+    "source_type": "official_brand"
+  },
+  {
+    "product_name_raw": "Hydrating Serum 30 ml",
+    "sku_raw": "TEST-001",
+    "brand_raw": "Example Brand",
+    "category_raw": "serum",
+    "price_raw": "350000",
+    "currency_raw": "VND",
+    "product_url": "https://example.com/products/a"
+  },
+  {
+    "product_name_raw": "Unknown Lotion",
+    "sku_raw": "TEST-002",
+    "brand_raw": "Example Brand",
+    "category_raw": "mystery lotion",
+    "price_raw": "199000",
+    "currency_raw": "VND",
+    "skin_types_raw": "for everyone",
+    "product_url": "https://example.com/products/b"
+  }
+]

@@ -3,13 +3,21 @@ node_modules/
 .venv/
 venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
 
 # Build output
 dist/
 build/
 target/
 out/
+output/runtime/
+.playwright-cli/
+.git-backups/
 
 # Local environment
 .env
@@ -29,3 +37,18 @@ datasets/raw/*
 datasets/processed/*
 !datasets/raw/.gitkeep
 !datasets/processed/.gitkeep
+
+# Data pipeline generated reports/checkpoints/logs
+datasets/product-catalog/*/products.json
+datasets/reports/*
+datasets/checkpoints/*
+datasets/logs/*
+!datasets/reports/.gitkeep
+!datasets/checkpoints/.gitkeep
+!datasets/logs/.gitkeep
+# Generated CSV/combined pipeline outputs
+datasets/raw/*/products.csv
+datasets/processed/*/products.csv
+datasets/product-catalog/*/products.csv
+datasets/*/all_brands_products.json
+datasets/*/all_brands_products.csv

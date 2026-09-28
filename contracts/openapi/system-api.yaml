@@ -2,14 +2,217 @@ openapi: 3.0.3
 info:
   title: Cosmetic Ecommerce Internal System API
   version: 0.1.0
-  description: API contract between the website and internal recommendation, chatbot, analytics, and behavior tracking systems.
+  description: >-
+    API contract for the implemented recommendation backend. Operations marked
+    PLANNED describe future boundaries and are not production-ready endpoints.
 servers:
   - url: http://localhost:8080/api
+    description: Backend/API gateway
+  - url: http://localhost:8001
+    description: Direct recommendation-service during local development
 paths:
+  /health:
+    get:
+      summary: Recommendation service liveness
+      tags: [Operations]
+      x-implementation-status: IMPLEMENTED
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /ready:
+    get:
+      summary: Recommendation service readiness
+      tags: [Operations]
+      x-implementation-status: IMPLEMENTED
+      responses:
+        "200":
+          description: Catalog and required dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Catalog or required database is unavailable
+  /products:
+    get:
+      summary: List products from the recommendation-ready catalog
+      tags: [Catalog]
+      x-implementation-status: IMPLEMENTED
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 120
+        - name: category
+          in: query
+          schema:
+            type: string
+            maxLength: 80
+        - name: brand
+          in: query
+          schema:
+            type: string
+            maxLength: 80
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 24
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Paginated product catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+  /products/{productId}:
+    get:
+      summary: Get one catalog product
+      tags: [Catalog]
+      x-implementation-status: IMPLEMENTED
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+  /auth/register:
+    post:
+      summary: Register a CUSTOMER account
+      tags: [Authentication]
+      x-implementation-status: IMPLEMENTED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already registered
+  /auth/login:
+    post:
+      summary: Authenticate with email and password
+      tags: [Authentication]
+      x-implementation-status: IMPLEMENTED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+  /auth/profile:
+    get:
+      summary: Get the authenticated user profile
+      tags: [Authentication]
+      x-implementation-status: IMPLEMENTED
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Invalid or expired token
+  /orders:
+    post:
+      summary: Create an order using authoritative catalog prices
+      tags: [Orders]
+      x-implementation-status: IMPLEMENTED
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreateRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Authentication required
+        "422":
+          description: Invalid product, stock, or currency
+    get:
+      summary: List orders owned by the authenticated user
+      tags: [Orders]
+      x-implementation-status: IMPLEMENTED
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User order history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+  /admin/orders:
+    get:
+      summary: List all orders as ADMIN
+      tags: [Orders, Admin]
+      x-implementation-status: IMPLEMENTED
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+        "403":
+          description: ADMIN role required
   /behavior-events:
     post:
       summary: Track a user behavior event
       tags: [Behavior Tracking]
+      x-implementation-status: IMPLEMENTED
       requestBody:
         required: true
         content:
@@ -19,10 +222,17 @@ paths:
       responses:
         "202":
           description: Event accepted
+        "404":
+          description: Product not found
+        "422":
+          description: Schema validation failed
+        "503":
+          description: Database integration unavailable
   /recommendations/personalized:
     post:
       summary: Get personalized product recommendations
       tags: [Recommendation]
+      x-implementation-status: IMPLEMENTED
       requestBody:
         required: true
         content:
@@ -36,22 +246,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecommendationResponse"
+        "422":
+          description: Schema validation failed
+        "503":
+          description: Required database unavailable
   /recommendations/similar-products/{productId}:
     get:
       summary: Get products similar to a selected product
       tags: [Recommendation]
+      x-implementation-status: IMPLEMENTED
       parameters:
         - name: productId
           in: path
           required: true
           schema:
             type: integer
+            minimum: 1
         - name: limit
           in: query
           required: false
           schema:
             type: integer
             default: 10
+            minimum: 1
+            maximum: 50
       responses:
         "200":
           description: Similar product result
@@ -59,10 +277,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecommendationResponse"
+        "404":
+          description: Product not found
+        "422":
+          description: Invalid productId or limit
+  /recommendations/explain:
+    post:
+      summary: Explain why a product is recommended
+      tags: [Recommendation]
+      x-implementation-status: IMPLEMENTED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RecommendationRequest"
+                - type: object
+                  required: [productId]
+                  properties:
+                    productId:
+                      type: integer
+                      minimum: 1
+                      description: Product primary key in the products table when DB integration is enabled.
+      responses:
+        "200":
+          description: Recommendation explanation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendedProduct"
+        "404":
+          description: Product or explanation not found
+        "422":
+          description: Schema validation failed
+        "503":
+          description: Required database unavailable
   /chatbot/messages:
     post:
       summary: Send a message to the consultation chatbot
       tags: [Chatbot]
+      x-implementation-status: PLANNED
+      description: Future extension. No chatbot production endpoint is implemented in the current repository.
       requestBody:
         required: true
         content:
@@ -80,6 +336,8 @@ paths:
     get:
       summary: Get admin dashboard summary metrics
       tags: [Analytics]
+      x-implementation-status: PLANNED
+      description: Future extension. No analytics production endpoint is implemented in the current repository.
       parameters:
         - name: from
           in: query
@@ -101,19 +359,244 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummaryResponse"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
-    BehaviorEventRequest:
+    Product:
       type: object
-      required: [eventType, occurredAt]
+      required: [productId, sku, name, brand, category, skinTypes, skinConcerns, careGoals]
+      properties:
+        productId:
+          type: integer
+          minimum: 1
+        sku:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        description:
+          type: string
+        benefits:
+          type: string
+        inciIngredients:
+          type: string
+        keyIngredients:
+          type: string
+        skinTypes:
+          type: array
+          items:
+            type: string
+        skinConcerns:
+          type: array
+          items:
+            type: string
+        careGoals:
+          type: array
+          items:
+            type: string
+        texture:
+          type: string
+        imageUrl:
+          type: string
+          format: uri
+        sourceUrl:
+          type: string
+          format: uri
+        stockQuantity:
+          type: integer
+          minimum: 0
+          nullable: true
+    ProductListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        offset:
+          type: integer
+          minimum: 0
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    UserProfile:
+      type: object
+      required: [userId, fullName, email, role]
       properties:
         userId:
           type: integer
+          minimum: 1
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [CUSTOMER, ADMIN]
+        skinType:
+          type: string
+          nullable: true
+    AuthResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [bearer]
+        expiresIn:
+          type: integer
+        user:
+          $ref: "#/components/schemas/UserProfile"
+    OrderCreateRequest:
+      type: object
+      required: [items, currency, shippingName, shippingPhone, shippingAddress]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId:
+                type: integer
+                minimum: 1
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 99
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        shippingName:
+          type: string
+        shippingPhone:
+          type: string
+        shippingAddress:
+          type: string
+        note:
+          type: string
+          nullable: true
+        paymentMethod:
+          type: string
+          enum: [COD, BANK_TRANSFER]
+          default: COD
+    Order:
+      type: object
+      required: [orderId, userId, status, totalAmount, currency, items]
+      properties:
+        orderId:
+          type: integer
+        userId:
+          type: integer
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, SHIPPING, COMPLETED, CANCELED]
+        totalAmount:
+          type: number
+        currency:
+          type: string
+        shippingName:
+          type: string
+        shippingPhone:
+          type: string
+        shippingAddress:
+          type: string
+        note:
+          type: string
+          nullable: true
+        paymentMethod:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            type: object
+            required: [productId, productName, quantity, unitPrice]
+            properties:
+              productId:
+                type: integer
+              productName:
+                type: string
+              quantity:
+                type: integer
+              unitPrice:
+                type: number
+    OrderListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        total:
+          type: integer
+    BehaviorEventRequest:
+      type: object
+      required: [eventType]
+      description: Requires either userId or sessionId. Product-level events require productId.
+      properties:
+        userId:
+          type: integer
+          minimum: 1
           nullable: true
         sessionId:
           type: string
+          minLength: 1
+          maxLength: 120
+          nullable: true
+          description: Trimmed before persistence. Required for anonymous behavior events when userId is absent; whitespace-only values are invalid.
         productId:
           type: integer
+          minimum: 1
           nullable: true
+          description: Product primary key. Required for view_product, click_recommendation, add_favorite, add_to_cart, remove_from_cart, place_order, and review_product.
         eventType:
           type: string
           enum:
@@ -137,31 +620,60 @@ components:
         occurredAt:
           type: string
           format: date-time
+          nullable: true
     RecommendationRequest:
       type: object
       properties:
         userId:
           type: integer
+          minimum: 1
           nullable: true
         sessionId:
           type: string
+          minLength: 1
+          maxLength: 120
+          nullable: true
+          description: Trimmed before use. Used to load anonymous behavior history when userId is absent; whitespace-only values are ignored.
         limit:
           type: integer
           default: 10
+          minimum: 1
+          maximum: 50
         context:
           type: object
           properties:
             skinType:
               type: string
+              enum: [normal, dry, oily, combination, sensitive]
             skinConcerns:
               type: array
               items:
                 type: string
+                enum: [acne, dark_spot, dryness, aging, redness, large_pores, dullness, uneven_texture, oiliness, sensitivity]
+            careGoals:
+              type: array
+              items:
+                type: string
+                enum: [cleanse, hydrate, brighten, anti_acne, anti_aging, repair, soothe, oil_control, sun_protection, exfoliate]
             budgetMin:
               type: number
+              minimum: 0
+              description: Must be less than or equal to budgetMax when both are provided.
             budgetMax:
               type: number
+              minimum: 0
+              description: Must be greater than or equal to budgetMin when both are provided.
+            budgetCurrency:
+              type: string
+              pattern: "^[A-Z]{3}$"
+              example: USD
+              description: Required whenever budgetMin or budgetMax is provided.
             preferredCategories:
+              type: array
+              items:
+                type: string
+                enum: [cleanser, toner, serum, moisturizer, sunscreen, exfoliant, mask, makeup_remover, eye_care, lip_care, body_care]
+            preferredBrands:
               type: array
               items:
                 type: string
@@ -169,11 +681,57 @@ components:
               type: array
               items:
                 type: string
+        behaviors:
+          type: array
+          description: Optional inline behavior events. When DB integration is enabled, the service also loads stored behavior history by userId/sessionId.
+          items:
+            $ref: "#/components/schemas/RecommendationBehaviorEvent"
+        excludeProductIds:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Product IDs to exclude from recommendations.
+    RecommendationBehaviorEvent:
+      type: object
+      required: [eventType]
+      properties:
+        eventType:
+          type: string
+          enum:
+            - view_product
+            - search_keyword
+            - filter_used
+            - click_recommendation
+            - add_favorite
+            - add_to_cart
+            - remove_from_cart
+            - place_order
+            - review_product
+            - chatbot_message
+        productId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Product primary key. Required for product-level and place_order events.
+        eventValue:
+          type: number
+          format: double
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        occurredAt:
+          type: string
+          format: date-time
+          nullable: true
     RecommendedProduct:
       type: object
+      required: [productId, score, reasons, status, scoreBreakdown]
       properties:
         productId:
           type: integer
+          minimum: 1
         score:
           type: number
           format: double
@@ -181,25 +739,91 @@ components:
           type: array
           items:
             type: string
+        status:
+          type: string
+          enum: [RANKED, NOT_RANKED, FILTERED_OUT]
+        scoreBreakdown:
+          type: object
+          additionalProperties:
+            type: number
     RecommendationResponse:
       type: object
+      required: [algorithm, weights, items, candidateCount, filteredCandidateCount]
       properties:
         algorithm:
           type: string
-          example: hybrid
+          example: knowledge_content_hybrid
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+          example:
+            knowledge_based: 0.55
+            content_based: 0.45
         items:
           type: array
           items:
             $ref: "#/components/schemas/RecommendedProduct"
+        candidateCount:
+          type: integer
+          minimum: 0
+        filteredCandidateCount:
+          type: integer
+          minimum: 0
+    HealthResponse:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          enum: [recommendation-service]
+        productCount:
+          type: integer
+          minimum: 0
+        catalogSource:
+          type: string
+        databaseEnabled:
+          type: boolean
+        databaseAvailable:
+          type: boolean
+    ReadinessResponse:
+      type: object
+      required: [status, service, checks]
+      properties:
+        status:
+          type: string
+          enum: [ready, ready_degraded]
+        service:
+          type: string
+          enum: [recommendation-service]
+        checks:
+          type: object
+          required: [appInitialized, catalogAvailable, databaseAvailable, degradedMode]
+          properties:
+            appInitialized:
+              type: boolean
+            catalogAvailable:
+              type: boolean
+            databaseAvailable:
+              type: boolean
+            degradedMode:
+              type: boolean
     ChatbotMessageRequest:
       type: object
       required: [message]
       properties:
         userId:
           type: integer
+          minimum: 1
           nullable: true
         sessionId:
           type: string
+          minLength: 1
+          maxLength: 120
+          nullable: true
         message:
           type: string
         context:
@@ -214,6 +838,7 @@ components:
           type: array
           items:
             type: integer
+            minimum: 1
         safetyNote:
           type: string
     DashboardSummaryResponse:
@@ -234,6 +859,7 @@ components:
             properties:
               productId:
                 type: integer
+                minimum: 1
               productName:
                 type: string
               metricValue:

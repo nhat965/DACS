@@ -1,0 +1,39 @@
+{
+  "note": "This is an offline expert/developer-defined evaluation set, not production user ground truth.",
+  "cases": [
+    {
+      "id": "acne-sensitive",
+      "profile": {
+        "skin_type": "sensitive",
+        "concerns": ["acne"],
+        "care_goals": ["anti_acne", "soothe"],
+        "avoid_ingredients": [],
+        "budget_max": 30,
+        "budget_currency": "USD"
+      },
+      "relevant_product_ids": [113021169, 113020107, 113020144]
+    },
+    {
+      "id": "sun-protection",
+      "profile": {
+        "concerns": [],
+        "care_goals": ["sun_protection"],
+        "preferred_categories": ["sunscreen"],
+        "budget_max": 50,
+        "budget_currency": "USD"
+      },
+      "relevant_product_ids": [113021058, 113020949, 883140000907]
+    },
+    {
+      "id": "dry-hydration",
+      "profile": {
+        "skin_type": "dry",
+        "concerns": ["dryness"],
+        "care_goals": ["hydrate", "repair"],
+        "budget_max": 60,
+        "budget_currency": "USD"
+      },
+      "relevant_product_ids": [113021198, 270284521, 270284499]
+    }
+  ]
+}

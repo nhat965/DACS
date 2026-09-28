@@ -1,0 +1,47 @@
+[
+  {
+    "product_id": 101,
+    "sku": "AI-101",
+    "name": "Fragrance Free Acne Serum",
+    "brand": "Example Lab",
+    "category": "serum",
+    "price": 18.0,
+    "currency": "USD",
+    "description": "Light acne serum",
+    "benefits": "Supports acne-prone skin",
+    "inci_ingredients": "Water, Niacinamide, Zinc PCA",
+    "skin_types": ["oily", "sensitive"],
+    "skin_concerns": ["acne", "oiliness"],
+    "care_goals": ["anti_acne", "oil_control"]
+  },
+  {
+    "product_id": 102,
+    "sku": "AI-102",
+    "name": "Fragranced Acne Lotion",
+    "brand": "Example Lab",
+    "category": "moisturizer",
+    "price": 15.0,
+    "currency": "USD",
+    "description": "Acne lotion with fragrance",
+    "benefits": "Hydrates acne-prone skin",
+    "inci_ingredients": "Water, Parfum (Fragrance), Glycerin",
+    "skin_types": ["oily"],
+    "skin_concerns": ["acne"],
+    "care_goals": ["anti_acne", "hydrate"]
+  },
+  {
+    "product_id": 103,
+    "sku": "AI-103",
+    "name": "Premium Acne Essence",
+    "brand": "Example Premium",
+    "category": "serum",
+    "price": 80.0,
+    "currency": "USD",
+    "description": "Premium acne essence",
+    "benefits": "Supports acne-prone skin",
+    "inci_ingredients": "Water, Niacinamide",
+    "skin_types": ["oily"],
+    "skin_concerns": ["acne"],
+    "care_goals": ["anti_acne"]
+  }
+]
