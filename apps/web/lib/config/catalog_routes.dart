@@ -61,12 +61,17 @@ class CatalogRoutes {
     CatalogDestination(
       label: 'Hàng mới',
       route: '/new-arrivals',
-      icon: Icons.auto_awesome_outlined,
+      icon: Icons.new_releases_outlined,
     ),
     CatalogDestination(
       label: 'Quà tặng',
       route: '/gifts',
       icon: Icons.card_giftcard_outlined,
+    ),
+    CatalogDestination(
+      label: 'Blog',
+      route: '/blog',
+      icon: Icons.menu_book_outlined,
     ),
   ];
 

@@ -36,7 +36,7 @@ class _AiChatBoxState extends State<AiChatBox> {
   final messages = <_ChatMessage>[
     const _ChatMessage(
       user: false,
-      text: 'Mình có thể tìm sản phẩm từ catalog thật theo loại da, concern và mục tiêu của bạn.',
+      text: 'Mình có thể gợi ý sản phẩm theo loại da, vấn đề và mục tiêu của bạn.',
     ),
   ];
 
@@ -95,8 +95,8 @@ class _AiChatBoxState extends State<AiChatBox> {
         _ChatMessage(
           user: false,
           text: products.isEmpty
-              ? 'Backend không tìm thấy sản phẩm đủ điểm phù hợp với các điều kiện này.'
-              : 'Mình tìm thấy ${products.length} sản phẩm từ recommendation backend. Giá và tên bên dưới lấy trực tiếp từ catalog.',
+              ? 'Mình chưa tìm thấy sản phẩm đủ phù hợp với các điều kiện này.'
+              : 'Mình tìm thấy ${products.length} sản phẩm phù hợp. Bạn có thể mở từng sản phẩm để xem chi tiết.',
           products: products,
         ),
       );

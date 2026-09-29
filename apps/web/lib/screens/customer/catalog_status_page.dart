@@ -10,11 +10,15 @@ class CatalogStatusPage extends StatelessWidget {
     required this.title,
     required this.message,
     required this.icon,
+    this.actionLabel = 'Khám phá danh mục',
+    this.actionRoute = '/categories',
   });
 
   final String title;
   final String message;
   final IconData icon;
+  final String actionLabel;
+  final String actionRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +54,9 @@ class CatalogStatusPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 28),
                       FilledButton.icon(
-                        onPressed: () => context.go('/categories'),
+                        onPressed: () => context.go(actionRoute),
                         icon: const Icon(Icons.arrow_forward),
-                        label: const Text('Khám phá danh mục'),
+                        label: Text(actionLabel),
                       ),
                     ],
                   ),

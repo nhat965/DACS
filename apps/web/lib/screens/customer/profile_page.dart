@@ -8,6 +8,7 @@ import '../../providers/preferences_provider.dart';
 import '../../models/beauty_preferences.dart';
 import '../../app/design_tokens.dart';
 import '../../utils/money.dart';
+import '../../widgets/app_header.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -34,133 +35,140 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = auth.user!;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tài khoản cá nhân')),
-      body: RefreshIndicator(
-        onRefresh: () => context.read<OrderProvider>().loadOrders(),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(26),
-                        child: Row(
-                          children: [
-                            const CircleAvatar(
-                              radius: 38,
-                              child: Icon(Icons.person_outline, size: 38),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => context.read<OrderProvider>().loadOrders(),
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 900),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(26),
+                              child: Row(
                                 children: [
-                                  Text(
-                                    user.fullName,
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w800,
+                                  const CircleAvatar(
+                                    radius: 38,
+                                    child: Icon(Icons.person_outline, size: 38),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user.fullName,
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(user.email),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          user.role,
+                                          style: TextStyle(
+                                            color: Colors.pink.shade700,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(user.email),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    user.role,
-                                    style: TextStyle(
-                                      color: Colors.pink.shade700,
-                                    ),
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await auth.logout();
+                                      if (!context.mounted) return;
+                                      context.go('/');
+                                    },
+                                    icon: const Icon(Icons.logout),
+                                    label: const Text('Đăng xuất'),
                                   ),
                                 ],
                               ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                await auth.logout();
-                                if (!context.mounted) return;
-                                context.go('/');
-                              },
-                              icon: const Icon(Icons.logout),
-                              label: const Text('Đăng xuất'),
+                          ),
+                          const SizedBox(height: 28),
+                          _BeautyProfileCard(state: preferences),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'Đơn hàng của tôi',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    _BeautyProfileCard(state: preferences),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'Đơn hàng của tôi',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if (orders.isLoading && orders.orders.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(36),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (orders.errorMessage != null)
-                      _OrderMessage(
-                        message: orders.errorMessage!,
-                        actionLabel: 'Thử lại',
-                        onAction: () => orders.loadOrders(),
-                      )
-                    else if (orders.orders.isEmpty)
-                      _OrderMessage(
-                        message: 'Bạn chưa có đơn hàng nào.',
-                        actionLabel: 'Mua sắm ngay',
-                        onAction: () => context.go('/'),
-                      )
-                    else
-                      ...orders.orders.map(
-                        (order) => Card(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          child: ExpansionTile(
-                            title: Text(
-                              'Đơn #${order.orderId}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                          ),
+                          const SizedBox(height: 14),
+                          if (orders.isLoading && orders.orders.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(36),
+                                child: CircularProgressIndicator(),
                               ),
-                            ),
-                            subtitle: Text(
-                              '${order.status} · ${formatMoney(order.totalAmount, order.currency)}',
-                            ),
-                            children: order.items
-                                .map(
-                                  (item) => ListTile(
-                                    title: Text(item.productName),
-                                    subtitle: Text(
-                                      'Số lượng: ${item.quantity}',
-                                    ),
-                                    trailing: Text(
-                                      formatMoney(
-                                        item.unitPrice * item.quantity,
-                                        order.currency,
-                                      ),
+                            )
+                          else if (orders.errorMessage != null)
+                            _OrderMessage(
+                              message: orders.errorMessage!,
+                              actionLabel: 'Thử lại',
+                              onAction: () => orders.loadOrders(),
+                            )
+                          else if (orders.orders.isEmpty)
+                            _OrderMessage(
+                              message: 'Bạn chưa có đơn hàng nào.',
+                              actionLabel: 'Mua sắm ngay',
+                              onAction: () => context.go('/'),
+                            )
+                          else
+                            ...orders.orders.map(
+                              (order) => Card(
+                                margin: const EdgeInsets.only(bottom: 14),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    'Đơn #${order.orderId}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                )
-                                .toList(),
-                          ),
-                        ),
+                                  subtitle: Text(
+                                    '${order.status} · ${formatMoney(order.totalAmount, order.currency)}',
+                                  ),
+                                  children: order.items
+                                      .map(
+                                        (item) => ListTile(
+                                          title: Text(item.productName),
+                                          subtitle: Text(
+                                            'Số lượng: ${item.quantity}',
+                                          ),
+                                          trailing: Text(
+                                            formatMoney(
+                                              item.unitPrice * item.quantity,
+                                              order.currency,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

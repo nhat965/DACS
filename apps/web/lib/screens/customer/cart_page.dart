@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/cart_provider.dart';
 import '../../utils/money.dart';
+import '../../widgets/app_header.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -12,35 +13,41 @@ class CartPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     return Scaffold(
-      appBar: AppBar(title: Text('Giỏ hàng (${cart.itemCount})')),
-      body: cart.isEmpty
-          ? _EmptyCart(onBrowse: () => context.go('/'))
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 850;
-                final lines = _CartLines(cart: cart);
-                final summary = _CartSummary(cart: cart);
-                return SingleChildScrollView(
-                  padding: EdgeInsets.all(compact ? 20 : 40),
-                  child: compact
-                      ? Column(
-                          children: [
-                            lines,
-                            const SizedBox(height: 24),
-                            summary,
-                          ],
-                        )
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 2, child: lines),
-                            const SizedBox(width: 30),
-                            Expanded(child: summary),
-                          ],
-                        ),
-                );
-              },
-            ),
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: cart.isEmpty
+                ? _EmptyCart(onBrowse: () => context.go('/'))
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 850;
+                      final lines = _CartLines(cart: cart);
+                      final summary = _CartSummary(cart: cart);
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.all(compact ? 20 : 40),
+                        child: compact
+                            ? Column(
+                                children: [
+                                  lines,
+                                  const SizedBox(height: 24),
+                                  summary,
+                                ],
+                              )
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(flex: 2, child: lines),
+                                  const SizedBox(width: 30),
+                                  Expanded(child: summary),
+                                ],
+                              ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -237,7 +244,7 @@ class _EmptyCart extends StatelessWidget {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            const Text('Khám phá catalog và chọn sản phẩm phù hợp với bạn.'),
+            const Text('Khám phá và chọn sản phẩm phù hợp với bạn.'),
             const SizedBox(height: 22),
             FilledButton(
               onPressed: onBrowse,

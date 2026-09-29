@@ -71,6 +71,65 @@ class ProductGridSection extends StatelessWidget {
   }
 }
 
+class FlashSaleSection extends StatelessWidget {
+  const FlashSaleSection({super.key, required this.products});
+
+  final List<Product> products;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.feature),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: AppColors.surface),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              decoration: const BoxDecoration(gradient: AppGradients.flashSale),
+              child: Text(
+                '⚡ FLASH SALE ⚡',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppColors.surface,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: products.isEmpty
+                  ? const SizedBox(
+                      height: 120,
+                      child: Center(
+                        child: Text(
+                          'Ưu đãi mới đang được cập nhật. Hãy quay lại sớm nhé!',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      height: 370,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: products.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(width: AppSpacing.md),
+                        itemBuilder: (context, index) => SizedBox(
+                          width: 225,
+                          child: ProductCard(product: products[index]),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class PersonalizationCallout extends StatelessWidget {
   const PersonalizationCallout({super.key, required this.authenticated});
 
@@ -80,7 +139,7 @@ class PersonalizationCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.plum,
+        gradient: AppGradients.brand,
         borderRadius: BorderRadius.circular(AppRadius.feature),
       ),
       child: Padding(
@@ -106,8 +165,8 @@ class PersonalizationCallout extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     authenticated
-                        ? 'Cập nhật loại da, concern và mục tiêu để recommendation có ngữ cảnh rõ ràng.'
-                        : 'Tạo tài khoản và làm khảo sát ngắn để nhận gợi ý từ dữ liệu sản phẩm thật.',
+                        ? 'Cập nhật loại da và mục tiêu để Lumi hiểu bạn hơn.'
+                        : 'Làm khảo sát 30 giây để nhận gợi ý phù hợp với làn da của bạn.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppColors.paper.withValues(alpha: 0.82),
                     ),
@@ -205,7 +264,7 @@ class _PersonalizedHomePreviewState extends State<PersonalizedHomePreview> {
       children: [
         SectionHeader(
           title: 'Gợi ý dành riêng cho bạn',
-          subtitle: 'Xếp hạng từ hồ sơ đã lưu và tín hiệu hành vi.',
+          subtitle: 'Dành riêng cho làn da và sở thích của bạn.',
           actionLabel: 'Xem tất cả',
           onAction: () => context.go('/recommendations'),
         ),
@@ -263,8 +322,8 @@ class BrandShowcase extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Thương hiệu trong catalog',
-          subtitle: 'Danh sách được tạo từ dữ liệu backend hiện tại.',
+          title: 'Thương hiệu nổi bật',
+          subtitle: 'Khám phá những thương hiệu được yêu thích tại Lumi.',
           actionLabel: 'Xem thương hiệu',
           onAction: () => context.go('/brands'),
         ),
@@ -299,19 +358,19 @@ class TrustSection extends StatelessWidget {
   Widget build(BuildContext context) {
     const items = [
       (
-        Icons.storage_outlined,
-        'Catalog thật',
-        'Sản phẩm hiển thị từ API và MySQL.',
+        Icons.fact_check_outlined,
+        'Thông tin rõ ràng',
+        'Thông tin sản phẩm đầy đủ và dễ kiểm tra.',
       ),
       (
         Icons.tune_outlined,
-        'Gợi ý có ngữ cảnh',
-        'Dựa trên hồ sơ và hành vi được cho phép.',
+        'Gợi ý dành riêng',
+        'Theo làn da, nhu cầu và sở thích của bạn.',
       ),
       (
         Icons.shield_outlined,
-        'Không bịa dữ liệu',
-        'Thiếu rating, sold hoặc sale thì không hiển thị.',
+        'Mua sắm tự tin',
+        'Giá và tình trạng sản phẩm luôn được hiển thị minh bạch.',
       ),
     ];
     return LayoutBuilder(

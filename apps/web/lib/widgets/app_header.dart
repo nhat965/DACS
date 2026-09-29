@@ -12,14 +12,26 @@ const _navigationItems = <({String label, String route, IconData icon})>[
     route: '/categories',
     icon: Icons.grid_view_outlined,
   ),
+  (label: 'Outlet - Giá tốt', route: '/outlet', icon: Icons.sell_outlined),
   (
-    label: 'Hàng mới',
+    label: 'Hàng mới về',
     route: '/new-arrivals',
     icon: Icons.auto_awesome_outlined,
   ),
+  (label: 'Khuyến mại', route: '/promotions', icon: Icons.local_offer_outlined),
+  (label: 'Flash Sale ⚡', route: '/flash-sale', icon: Icons.bolt_outlined),
   (label: 'Thương hiệu', route: '/brands', icon: Icons.diamond_outlined),
-  (label: 'Quà tặng', route: '/gifts', icon: Icons.card_giftcard_outlined),
-  (label: 'Blog', route: '/blog', icon: Icons.auto_stories_outlined),
+  (label: 'Blog làm đẹp', route: '/blog', icon: Icons.auto_stories_outlined),
+  (
+    label: 'Hệ thống cửa hàng',
+    route: '/stores',
+    icon: Icons.storefront_outlined,
+  ),
+  (
+    label: 'Tra cứu đơn hàng',
+    route: '/order-lookup',
+    icon: Icons.receipt_long_outlined,
+  ),
 ];
 
 class AppHeader extends StatelessWidget {
@@ -29,10 +41,8 @@ class AppHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final cartCount = context.watch<CartProvider>().itemCount;
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
+    return DecoratedBox(
+      decoration: const BoxDecoration(boxShadow: AppShadows.header),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < AppBreakpoints.navigation) {
@@ -55,8 +65,9 @@ class _DesktopHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SizedBox(
+        Container(
           height: 76,
+          decoration: const BoxDecoration(gradient: AppGradients.brandHeader),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: AppBreakpoints.large),
@@ -64,7 +75,7 @@ class _DesktopHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                 child: Row(
                   children: [
-                    _Brand(onTap: () => context.go('/')),
+                    _Brand(onTap: () => context.go('/'), light: true),
                     const SizedBox(width: AppSpacing.xxl),
                     const Expanded(child: _HeaderSearch()),
                     const SizedBox(width: AppSpacing.lg),
@@ -83,9 +94,18 @@ class _DesktopHeader extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.surface,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    _CartButton(cartCount: cartCount),
+                    IconButton(
+                      tooltip: 'Hệ thống cửa hàng',
+                      onPressed: () => context.go('/stores'),
+                      color: AppColors.surface,
+                      icon: const Icon(Icons.location_on_outlined),
+                    ),
+                    _CartButton(cartCount: cartCount, light: true),
                   ],
                 ),
               ),
@@ -95,13 +115,14 @@ class _DesktopHeader extends StatelessWidget {
         Container(
           height: 52,
           decoration: BoxDecoration(
+            color: AppColors.surface,
             border: Border(
               top: BorderSide(color: Theme.of(context).dividerColor),
             ),
           ),
-          child: Center(
-            child: Wrap(
-              alignment: WrapAlignment.center,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: _navigationItems
                   .map(
                     (item) =>
@@ -156,6 +177,8 @@ class _HeaderSearchState extends State<_HeaderSearch> {
         ),
       ],
       onSubmitted: (_) => submit(),
+      backgroundColor: const WidgetStatePropertyAll(AppColors.surface),
+      elevation: const WidgetStatePropertyAll(0),
     );
   }
 }
@@ -205,7 +228,10 @@ class _DesktopNavItemState extends State<_DesktopNavItem> {
                 duration: AppDurations.feedback,
                 height: 2,
                 width: active || hovered ? 30 : 0,
-                color: color,
+                decoration: const BoxDecoration(
+                  gradient: AppGradients.brand,
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                ),
               ),
             ],
           ),
@@ -252,33 +278,41 @@ class _CompactHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 68,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Mở menu',
-                onPressed: () => openMenu(context),
-                icon: const Icon(Icons.menu),
-              ),
-              Expanded(child: _Brand(onTap: () => context.go('/'))),
-              IconButton(
-                tooltip: 'Tìm kiếm',
-                onPressed: () => context.go('/search'),
-                icon: const Icon(Icons.search),
-              ),
-              IconButton(
-                tooltip: auth.isAuthenticated ? 'Tài khoản' : 'Đăng nhập',
-                onPressed: () =>
-                    context.go(auth.isAuthenticated ? '/profile' : '/login'),
-                icon: const Icon(Icons.person_outline),
-              ),
-              _CartButton(cartCount: cartCount),
-            ],
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: AppGradients.brandHeader),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 68,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Mở menu',
+                  onPressed: () => openMenu(context),
+                  icon: const Icon(Icons.menu),
+                  color: AppColors.surface,
+                ),
+                Expanded(
+                  child: _Brand(onTap: () => context.go('/'), light: true),
+                ),
+                IconButton(
+                  tooltip: 'Tìm kiếm',
+                  onPressed: () => context.go('/search'),
+                  icon: const Icon(Icons.search),
+                  color: AppColors.surface,
+                ),
+                IconButton(
+                  tooltip: auth.isAuthenticated ? 'Tài khoản' : 'Đăng nhập',
+                  onPressed: () =>
+                      context.go(auth.isAuthenticated ? '/profile' : '/login'),
+                  icon: const Icon(Icons.person_outline),
+                  color: AppColors.surface,
+                ),
+                _CartButton(cartCount: cartCount, light: true),
+              ],
+            ),
           ),
         ),
       ),
@@ -287,9 +321,10 @@ class _CompactHeader extends StatelessWidget {
 }
 
 class _Brand extends StatelessWidget {
-  const _Brand({required this.onTap});
+  const _Brand({required this.onTap, this.light = false});
 
   final VoidCallback onTap;
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
@@ -298,27 +333,37 @@ class _Brand extends StatelessWidget {
       child: Text(
         'LUMI BEAUTY',
         maxLines: 1,
-        style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.2),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: light ? AppColors.surface : AppColors.ink,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }
 }
 
 class _CartButton extends StatelessWidget {
-  const _CartButton({required this.cartCount});
+  const _CartButton({required this.cartCount, this.light = false});
 
   final int cartCount;
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
     return Badge(
       isLabelVisible: cartCount > 0,
-      label: Text('$cartCount'),
+      label: AnimatedSwitcher(
+        duration: AppDurations.feedback,
+        transitionBuilder: (child, animation) =>
+            ScaleTransition(scale: animation, child: child),
+        child: Text('$cartCount', key: ValueKey(cartCount)),
+      ),
       child: IconButton(
         tooltip: 'Giỏ hàng',
         onPressed: () => context.go('/cart'),
         icon: const Icon(Icons.shopping_bag_outlined),
+        color: light ? AppColors.surface : null,
       ),
     );
   }

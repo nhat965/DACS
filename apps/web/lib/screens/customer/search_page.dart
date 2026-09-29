@@ -13,9 +13,16 @@ import '../../widgets/app_header.dart';
 import '../../widgets/product_card.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key, this.initialQuery = ''});
+  const SearchPage({
+    super.key,
+    this.initialQuery = '',
+    this.initialConcern,
+    this.initialGoal,
+  });
 
   final String initialQuery;
+  final String? initialConcern;
+  final String? initialGoal;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -33,6 +40,8 @@ class _SearchPageState extends State<SearchPage> {
   String? error;
   String? category;
   String? brand;
+  String? concern;
+  String? goal;
   String sort = 'name_asc';
   bool initialized = false;
 
@@ -40,6 +49,8 @@ class _SearchPageState extends State<SearchPage> {
   void initState() {
     super.initState();
     controller.text = widget.initialQuery;
+    concern = widget.initialConcern;
+    goal = widget.initialGoal;
   }
 
   @override
@@ -54,9 +65,12 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void didUpdateWidget(covariant SearchPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialQuery != widget.initialQuery &&
-        controller.text != widget.initialQuery) {
+    if (oldWidget.initialQuery != widget.initialQuery ||
+        oldWidget.initialConcern != widget.initialConcern ||
+        oldWidget.initialGoal != widget.initialGoal) {
       controller.text = widget.initialQuery;
+      concern = widget.initialConcern;
+      goal = widget.initialGoal;
       offset = 0;
       load();
     }
@@ -75,14 +89,24 @@ class _SearchPageState extends State<SearchPage> {
       if (!mounted) return;
       offset = 0;
       final query = value.trim();
-      context.replace(
-        Uri(
-          path: '/search',
-          queryParameters: query.isEmpty ? null : {'q': query},
-        ).toString(),
-      );
+      _syncRoute(query: query);
       load(trackSearch: query.isNotEmpty);
     });
+  }
+
+  void _syncRoute({String? query}) {
+    final parameters = <String, String>{
+      if ((query ?? controller.text).trim().isNotEmpty)
+        'q': (query ?? controller.text).trim(),
+      if (concern != null && concern!.isNotEmpty) 'concern': concern!,
+      if (goal != null && goal!.isNotEmpty) 'goal': goal!,
+    };
+    context.replace(
+      Uri(
+        path: '/search',
+        queryParameters: parameters.isEmpty ? null : parameters,
+      ).toString(),
+    );
   }
 
   Future<void> load({bool trackSearch = false}) async {
@@ -95,6 +119,8 @@ class _SearchPageState extends State<SearchPage> {
         search: controller.text,
         category: category,
         brand: brand,
+        concern: concern,
+        goal: goal,
         sort: sort,
         limit: pageSize,
         offset: offset,
@@ -131,6 +157,7 @@ class _SearchPageState extends State<SearchPage> {
       eventType: 'filter_used',
       metadata: {'category': category, 'brand': brand, 'sort': sort},
     );
+    _syncRoute();
     await load();
   }
 
@@ -139,6 +166,8 @@ class _SearchPageState extends State<SearchPage> {
     setState(() {
       category = null;
       brand = null;
+      concern = null;
+      goal = null;
       sort = 'name_asc';
       offset = 0;
     });
@@ -175,6 +204,8 @@ class _SearchPageState extends State<SearchPage> {
                   error: error,
                   category: category,
                   brand: brand,
+                  concern: concern,
+                  goal: goal,
                   sort: sort,
                   mobile: mobile,
                   onQueryChanged: onQueryChanged,
@@ -347,6 +378,8 @@ class _SearchResults extends StatelessWidget {
     required this.error,
     required this.category,
     required this.brand,
+    required this.concern,
+    required this.goal,
     required this.sort,
     required this.mobile,
     required this.onQueryChanged,
@@ -366,6 +399,8 @@ class _SearchResults extends StatelessWidget {
   final String? error;
   final String? category;
   final String? brand;
+  final String? concern;
+  final String? goal;
   final String sort;
   final bool mobile;
   final ValueChanged<String> onQueryChanged;
@@ -447,6 +482,10 @@ class _SearchResults extends StatelessWidget {
                   if (category != null)
                     Chip(label: Text(category!.replaceAll('_', ' '))),
                   if (brand != null) Chip(label: Text(brand!)),
+                  if (concern != null)
+                    Chip(label: Text(_friendlyFilterLabel(concern!))),
+                  if (goal != null)
+                    Chip(label: Text(_friendlyFilterLabel(goal!))),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -527,6 +566,20 @@ class _SearchResults extends StatelessWidget {
       ),
     );
   }
+}
+
+String _friendlyFilterLabel(String value) {
+  const labels = <String, String>{
+    'acne': 'Da mụn',
+    'oiliness': 'Da dầu',
+    'dryness': 'Da khô',
+    'sensitivity': 'Da nhạy cảm',
+    'dark_spot': 'Thâm & không đều màu',
+    'aging': 'Lão hóa',
+    'repair': 'Phục hồi',
+    'hydrate': 'Cấp ẩm',
+  };
+  return labels[value] ?? value.replaceAll('_', ' ');
 }
 
 class _SearchSkeleton extends StatelessWidget {

@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../utils/money.dart';
+import '../../widgets/app_header.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key});
@@ -63,50 +64,65 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final orders = context.watch<OrderProvider>();
     if (cart.isEmpty && orders.latestOrder == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Đặt hàng')),
-        body: Center(
-          child: FilledButton(
-            onPressed: () => context.go('/'),
-            child: const Text('Giỏ hàng trống — quay lại mua sắm'),
-          ),
+        body: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Center(
+                child: FilledButton(
+                  onPressed: () => context.go('/'),
+                  child: const Text('Giỏ hàng trống — quay lại mua sắm'),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Đặt hàng')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 850;
-          final form = _ShippingForm(
-            formKey: _formKey,
-            nameController: _nameController,
-            phoneController: _phoneController,
-            addressController: _addressController,
-            noteController: _noteController,
-            paymentMethod: _paymentMethod,
-            onPaymentChanged: (value) => setState(() => _paymentMethod = value),
-          );
-          final summary = _CheckoutSummary(
-            cart: cart,
-            isLoading: orders.isLoading,
-            errorMessage: orders.errorMessage,
-            onSubmit: _submit,
-          );
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(compact ? 20 : 40),
-            child: compact
-                ? Column(children: [form, const SizedBox(height: 24), summary])
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: form),
-                      const SizedBox(width: 30),
-                      Expanded(child: summary),
-                    ],
-                  ),
-          );
-        },
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 850;
+                final form = _ShippingForm(
+                  formKey: _formKey,
+                  nameController: _nameController,
+                  phoneController: _phoneController,
+                  addressController: _addressController,
+                  noteController: _noteController,
+                  paymentMethod: _paymentMethod,
+                  onPaymentChanged: (value) =>
+                      setState(() => _paymentMethod = value),
+                );
+                final summary = _CheckoutSummary(
+                  cart: cart,
+                  isLoading: orders.isLoading,
+                  errorMessage: orders.errorMessage,
+                  onSubmit: _submit,
+                );
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(compact ? 20 : 40),
+                  child: compact
+                      ? Column(
+                          children: [form, const SizedBox(height: 24), summary],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 2, child: form),
+                            const SizedBox(width: 30),
+                            Expanded(child: summary),
+                          ],
+                        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -274,7 +290,7 @@ class _CheckoutSummary extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Backend sẽ kiểm tra lại giá, currency và tồn kho khi tạo đơn.',
+              'Giá và tình trạng hàng sẽ được xác nhận khi bạn tạo đơn.',
               style: TextStyle(fontSize: 12),
             ),
             if (errorMessage != null) ...[

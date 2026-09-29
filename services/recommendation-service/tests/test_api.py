@@ -112,6 +112,17 @@ class ApiPayloadTest(unittest.TestCase):
         )
         self.assertEqual(next_page.json()["items"][0]["productId"], 1)
 
+    def test_product_catalog_filters_by_concern_and_care_goal(self):
+        acne = self.client.get("/products?concern=acne")
+        hydration = self.client.get("/products?goal=hydrate")
+
+        self.assertEqual(acne.status_code, 200)
+        self.assertEqual(acne.json()["total"], 1)
+        self.assertEqual(acne.json()["items"][0]["productId"], 1)
+        self.assertEqual(hydration.status_code, 200)
+        self.assertEqual(hydration.json()["total"], 1)
+        self.assertEqual(hydration.json()["items"][0]["productId"], 2)
+
     def test_local_flutter_web_origin_is_allowed_by_cors(self):
         response = self.client.options(
             "/products",

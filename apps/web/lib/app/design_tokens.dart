@@ -3,16 +3,76 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  static const ivory = Color(0xFFFCF9F7);
-  static const paper = Color(0xFFFFFFFF);
+  static const backgroundBase = Color(0xFFFFF9FC);
+  static const pinkMist = Color(0xFFFCE8F3);
+  static const lavenderMist = Color(0xFFEEE8FF);
+  static const softPurple = Color(0xFFDCCBFF);
+  static const surface = Color(0xFFFFFFFF);
   static const ink = Color(0xFF241B20);
   static const mutedInk = Color(0xFF6F6268);
-  static const rose = Color(0xFFB5486D);
-  static const paleRose = Color(0xFFF7E9EE);
-  static const plum = Color(0xFF65354C);
+  static const rose = Color(0xFFD85A8A);
+  static const lumiBlue = Color(0xFF70B8F5);
+  static const lumiPurple = Color(0xFFAD8AF5);
+  static const lumiPink = Color(0xFFFF8DB8);
+  static const lumiPeach = Color(0xFFFFC889);
+  static const paleRose = Color(0xFFF9DCE9);
+  static const plum = Color(0xFF6C3657);
+  static const deepPlum = Color(0xFF43243A);
+  static const blushPink = Color(0xFFFFE1EC);
+  static const softRose = Color(0xFFF8DDE7);
+  static const softPink = Color(0xFFFFF0F6);
+  static const softViolet = Color(0xFFE9DFFF);
+  static const peachPink = Color(0xFFFFE7DE);
+  static const lilac = Color(0xFFE5D9FF);
   static const success = Color(0xFF28785A);
   static const warning = Color(0xFF9A641D);
-  static const line = Color(0xFFE9E1E4);
+  static const error = Color(0xFFB3261E);
+  static const line = Color(0xFFEBDDE5);
+  static const focus = Color(0xFF8358B8);
+
+  // Compatibility aliases while the remaining screens migrate to semantic names.
+  static const ivory = backgroundBase;
+  static const paper = surface;
+}
+
+class AppGradients {
+  const AppGradients._();
+
+  static const ambient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFF0E8FF), Color(0xFFFFEEF6), Color(0xFFFFFAFC)],
+  );
+
+  static const brand = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.plum, AppColors.rose],
+  );
+
+  static const brandHeader = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [
+      AppColors.lumiBlue,
+      AppColors.lumiPurple,
+      AppColors.lumiPink,
+      AppColors.lumiPeach,
+    ],
+  );
+
+  static const flashSale = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFE91E63), Color(0xFF8E24AA)],
+  );
+
+  static const heroOverlay = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xE643243A), Color(0xA66C3657), Color(0x1AD85A8A)],
+    stops: [0, 0.48, 1],
+  );
 }
 
 class AppSpacing {
@@ -42,10 +102,13 @@ class AppShadows {
   const AppShadows._();
 
   static const soft = [
-    BoxShadow(color: Color(0x14241B20), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x1AD85A8A), blurRadius: 28, offset: Offset(0, 12)),
   ];
   static const lifted = [
-    BoxShadow(color: Color(0x24241B20), blurRadius: 32, offset: Offset(0, 14)),
+    BoxShadow(color: Color(0x296C3657), blurRadius: 34, offset: Offset(0, 16)),
+  ];
+  static const header = [
+    BoxShadow(color: Color(0x146C3657), blurRadius: 24, offset: Offset(0, 6)),
   ];
 }
 

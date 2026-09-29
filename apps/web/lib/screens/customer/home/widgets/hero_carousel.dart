@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/design_tokens.dart';
+import '../../../../widgets/app_animations.dart';
 
 class _HeroSlide {
   const _HeroSlide({
@@ -25,21 +26,22 @@ const _slides = [
   _HeroSlide(
     imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1800&q=85',
     title: 'Routine dịu nhẹ cho da dầu mụn',
-    subtitle: 'Khám phá sản phẩm có dữ liệu concern acne trong catalog.',
+    subtitle:
+        'Những lựa chọn làm sạch và chăm sóc phù hợp cho làn da dễ nổi mụn.',
     action: 'Tìm sản phẩm',
-    route: '/search?q=acne',
+    route: '/search?concern=acne',
   ),
   _HeroSlide(
     imageUrl: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=1800&q=85',
-    title: 'Hàng mới, khi dữ liệu đủ tin cậy',
-    subtitle: 'Lumi chỉ gắn nhãn mới khi catalog có mốc thời gian xác thực.',
-    action: 'Xem trạng thái',
-    route: '/new-arrivals',
+    title: 'Chăm sóc da theo nhu cầu',
+    subtitle: 'Khám phá routine từ làm sạch, dưỡng ẩm đến bảo vệ da mỗi ngày.',
+    action: 'Khám phá danh mục',
+    route: '/categories',
   ),
   _HeroSlide(
     imageUrl: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=1800&q=85',
     title: 'Khám phá COSRX',
-    subtitle: 'Duyệt các sản phẩm COSRX đang hoạt động trong catalog.',
+    subtitle: 'Khám phá những lựa chọn chăm sóc da được yêu thích từ COSRX.',
     action: 'Xem thương hiệu',
     route: '/brand/COSRX',
   ),
@@ -47,16 +49,16 @@ const _slides = [
     imageUrl: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1800&q=85',
     title: 'Gợi ý dành riêng cho bạn',
     subtitle:
-        'Hoàn thiện hồ sơ làm đẹp để recommendation hiểu nhu cầu của bạn.',
+        'Hoàn thiện hồ sơ làm đẹp để Lumi hiểu làn da và sở thích của bạn.',
     action: 'Mở hồ sơ',
     route: '/profile',
   ),
   _HeroSlide(
     imageUrl: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=1800&q=85',
     title: 'Tìm routine cấp ẩm',
-    subtitle: 'Tìm trong tên, thương hiệu và danh mục trên backend.',
+    subtitle: 'Khám phá những sản phẩm giúp làn da mềm mại và đủ ẩm mỗi ngày.',
     action: 'Tìm kiếm ngay',
-    route: '/search?q=hydration',
+    route: '/search?goal=hydrate',
   ),
 ];
 
@@ -106,9 +108,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
       onExit: (_) => setState(() => hovered = false),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final mobile = constraints.maxWidth < AppBreakpoints.mobile;
-          return SizedBox(
-            height: mobile ? 480 : 560,
+          final mobile = constraints.maxWidth < 800;
+          final mainBanner = SizedBox(
+            height: mobile ? 420 : 420,
             child: Stack(
               children: [
                 ClipRRect(
@@ -186,7 +188,148 @@ class _HeroCarouselState extends State<HeroCarousel> {
               ],
             ),
           );
+          if (mobile) {
+            return Column(
+              children: [
+                mainBanner,
+                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(
+                  height: 150,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SideBanner(
+                          title: 'Khám phá COSRX',
+                          subtitle: 'Chăm sóc da mỗi ngày',
+                          route: '/brand/COSRX',
+                          imageUrl: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=82',
+                        ),
+                      ),
+                      SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _SideBanner(
+                          title: 'Gợi ý riêng cho bạn',
+                          subtitle: 'Khảo sát nhanh 30 giây',
+                          route: '/onboarding',
+                          imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=82',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
+          return SizedBox(
+            height: 420,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 2, child: mainBanner),
+                const SizedBox(width: AppSpacing.lg),
+                const Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _SideBanner(
+                          title: 'Khám phá COSRX',
+                          subtitle: 'Chăm sóc da mỗi ngày',
+                          route: '/brand/COSRX',
+                          imageUrl: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=82',
+                        ),
+                      ),
+                      SizedBox(height: AppSpacing.lg),
+                      Expanded(
+                        child: _SideBanner(
+                          title: 'Gợi ý riêng cho bạn',
+                          subtitle: 'Khảo sát nhanh 30 giây',
+                          route: '/onboarding',
+                          imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=82',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
         },
+      ),
+    );
+  }
+}
+
+class _SideBanner extends StatelessWidget {
+  const _SideBanner({
+    required this.title,
+    required this.subtitle,
+    required this.route,
+    required this.imageUrl,
+  });
+
+  final String title;
+  final String subtitle;
+  final String route;
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverLift(
+      scale: 1.012,
+      onTap: () => context.go(route),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              cacheWidth: (900 * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
+              errorBuilder: (_, _, _) => const DecoratedBox(
+                decoration: BoxDecoration(gradient: AppGradients.brandHeader),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Color(0xCC43243A), Color(0x1243243A)],
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(color: AppColors.surface),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.surface.withValues(alpha: 0.88),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -206,18 +349,27 @@ class _SlideContent extends StatelessWidget {
         Image.network(
           slide.imageUrl,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const ColoredBox(color: AppColors.plum),
+          cacheWidth: (1800 * MediaQuery.devicePixelRatioOf(context)).round(),
+          errorBuilder: (_, _, _) => const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppGradients.brand),
+            child: Center(
+              child: Icon(
+                Icons.spa_outlined,
+                size: 84,
+                color: Color(0x66FFFFFF),
+              ),
+            ),
+          ),
         ),
         DecoratedBox(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: mobile ? Alignment.bottomCenter : Alignment.centerLeft,
-              end: mobile ? Alignment.topCenter : Alignment.centerRight,
-              colors: [
-                AppColors.ink.withValues(alpha: 0.86),
-                AppColors.ink.withValues(alpha: mobile ? 0.18 : 0.05),
-              ],
-            ),
+            gradient: mobile
+                ? const LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Color(0xEB43243A), Color(0x1AD85A8A)],
+                  )
+                : AppGradients.heroOverlay,
           ),
         ),
         Align(

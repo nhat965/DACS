@@ -26,6 +26,8 @@ class BackendApi {
     String? search,
     String? category,
     String? brand,
+    String? concern,
+    String? goal,
     int limit = 100,
     int offset = 0,
   }) async {
@@ -33,6 +35,8 @@ class BackendApi {
       search: search,
       category: category,
       brand: brand,
+      concern: concern,
+      goal: goal,
       limit: limit,
       offset: offset,
     );
@@ -43,6 +47,8 @@ class BackendApi {
     String? search,
     String? category,
     String? brand,
+    String? concern,
+    String? goal,
     double? priceMin,
     double? priceMax,
     String sort = 'name_asc',
@@ -56,6 +62,9 @@ class BackendApi {
         if (category != null && category.trim().isNotEmpty)
           'category': category.trim(),
         if (brand != null && brand.trim().isNotEmpty) 'brand': brand.trim(),
+        if (concern != null && concern.trim().isNotEmpty)
+          'concern': concern.trim(),
+        if (goal != null && goal.trim().isNotEmpty) 'goal': goal.trim(),
         'priceMin': ?priceMin,
         'priceMax': ?priceMax,
         'sort': sort,
@@ -102,6 +111,12 @@ class BackendApi {
       data: {'email': email, 'password': password},
     );
     return AuthSession.fromJson(response.data ?? const {});
+  }
+
+  Future<PasswordResetRequestResult> requestPasswordReset(String email) async {
+    // The contract is intentionally explicit until reset-token delivery exists.
+    // No success is simulated and no user email is disclosed.
+    return PasswordResetRequestResult.notAvailable;
   }
 
   Future<UserProfile> getProfile(String accessToken) async {
@@ -271,11 +286,13 @@ class BackendApi {
       if (status == 409) return detail?.toString() ?? 'Dữ liệu đã tồn tại.';
       if (status == 422 && detail is String) return detail;
       if (status == 404) return 'Không tìm thấy dữ liệu yêu cầu.';
-      if (status == 503) return 'Dịch vụ backend đang tạm thời chưa sẵn sàng.';
+      if (status == 503) {
+        return 'Lumi đang tạm thời chưa sẵn sàng. Vui lòng thử lại sau.';
+      }
       if (detail is String && detail.isNotEmpty) return detail;
       if (error.type == DioExceptionType.connectionError ||
           error.type == DioExceptionType.connectionTimeout) {
-        return 'Không thể kết nối backend tại ${AppConfig.apiBaseUrl}.';
+        return 'Không thể tải dữ liệu lúc này. Vui lòng kiểm tra kết nối và thử lại.';
       }
     }
     return 'Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại.';
@@ -284,6 +301,8 @@ class BackendApi {
   Options _authorized(String accessToken) =>
       Options(headers: {'Authorization': 'Bearer $accessToken'});
 }
+
+enum PasswordResetRequestResult { notAvailable }
 
 class ProductPage {
   const ProductPage({

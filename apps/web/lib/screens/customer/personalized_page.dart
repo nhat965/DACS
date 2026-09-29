@@ -105,7 +105,7 @@ class _PersonalizedPageState extends State<PersonalizedPage> {
                         _Message(
                           icon: Icons.tune_outlined,
                           title: 'Cần hồ sơ làm đẹp',
-                          message: 'Hoàn thành khảo sát để backend có ngữ cảnh xếp hạng sản phẩm.',
+                          message: 'Hoàn thành khảo sát để Lumi hiểu làn da và ưu tiên của bạn.',
                           action: 'Hoàn thành hồ sơ',
                           onAction: () => context.go('/onboarding'),
                         )

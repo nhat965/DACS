@@ -23,14 +23,19 @@ class AppFooter extends StatelessWidget {
                 final compact =
                     constraints.maxWidth < AppBreakpoints.navigation;
                 final about = _AboutBlock(compact: compact);
-                final navigation = const _FooterNavigation();
+                final support = const _FooterNavigation();
+                final social = const _SocialLinks();
                 if (compact) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       about,
                       const SizedBox(height: AppSpacing.xl),
-                      navigation,
+                      Wrap(
+                        spacing: AppSpacing.xxl,
+                        runSpacing: AppSpacing.xl,
+                        children: [support, social],
+                      ),
                     ],
                   );
                 }
@@ -38,7 +43,9 @@ class AppFooter extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: about),
-                    navigation,
+                    support,
+                    const SizedBox(width: AppSpacing.xxl),
+                    social,
                   ],
                 );
               },
@@ -69,7 +76,7 @@ class _AboutBlock extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Khám phá mỹ phẩm từ catalog thật và nhận gợi ý dựa trên hồ sơ làm đẹp của riêng bạn.',
+            'Khám phá mỹ phẩm và nhận gợi ý dựa trên hồ sơ làm đẹp của riêng bạn.',
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: AppColors.paper.withValues(alpha: 0.74)),
           ),
@@ -90,16 +97,49 @@ class _FooterNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.xl,
-      runSpacing: AppSpacing.xs,
-      children: const [
-        _FooterLink(label: 'Danh mục', route: '/categories'),
-        _FooterLink(label: 'Thương hiệu', route: '/brands'),
-        _FooterLink(label: 'Tìm kiếm', route: '/search'),
-        _FooterLink(label: 'Tài khoản', route: '/profile'),
-        _FooterLink(label: 'Giỏ hàng', route: '/cart'),
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FooterHeading('Hỗ trợ'),
+        _FooterLink(label: 'Liên hệ', route: '/stores'),
+        _FooterLink(label: 'Chính sách', route: '/blog'),
+        _FooterLink(label: 'Đổi trả', route: '/order-lookup'),
       ],
+    );
+  }
+}
+
+class _SocialLinks extends StatelessWidget {
+  const _SocialLinks();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FooterHeading('Theo dõi chúng tôi'),
+        _FooterLink(label: 'Facebook', route: '/social/facebook'),
+        _FooterLink(label: 'Instagram', route: '/social/instagram'),
+        _FooterLink(label: 'TikTok', route: '/social/tiktok'),
+      ],
+    );
+  }
+}
+
+class _FooterHeading extends StatelessWidget {
+  const _FooterHeading(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(color: AppColors.surface),
+      ),
     );
   }
 }

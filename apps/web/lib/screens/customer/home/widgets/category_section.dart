@@ -10,51 +10,64 @@ class CategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const order = [
+      'Son môi',
+      'Hàng mới',
+      'Quà tặng',
+      'Makeup',
+      'Skincare',
+      'Nước hoa',
+      'Bodycare',
+      'Blog',
+    ];
+    final items = order
+        .map(
+          (label) => CatalogRoutes.destinations.firstWhere(
+            (item) => item.label == label,
+          ),
+        )
+        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: 'Mua sắm theo danh mục',
-          subtitle: 'Chọn nhanh nhóm sản phẩm bạn đang quan tâm.',
-          actionLabel: 'Xem tất cả',
-          onAction: () => context.go('/categories'),
-        ),
-        const SizedBox(height: AppSpacing.lg),
         SizedBox(
-          height: 150,
+          height: 126,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: CatalogRoutes.destinations.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
             itemBuilder: (context, index) {
-              final item = CatalogRoutes.destinations[index];
+              final item = items[index];
               return SizedBox(
-                width: 152,
+                width: 106,
                 child: HoverLift(
+                  scale: 1.04,
                   onTap: () => context.go(item.route),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: index.isEven
-                          ? AppColors.paleRose
-                          : AppColors.paper,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      boxShadow: AppShadows.soft,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(item.icon, size: 34, color: AppColors.rose),
-                          const SizedBox(height: AppSpacing.md),
-                          Text(
-                            item.label,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleMedium,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: AppColors.softPink,
+                          shape: BoxShape.circle,
+                        ),
+                        child: SizedBox.square(
+                          dimension: 68,
+                          child: Icon(
+                            item.icon,
+                            size: 34,
+                            color: AppColors.rose,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        item.label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
               );

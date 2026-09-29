@@ -8,7 +8,11 @@ import '../../widgets/ai_chat_box.dart';
 import '../../widgets/app_animations.dart';
 import '../../widgets/app_footer.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/lumi_page_background.dart';
+import '../../widgets/lumi_content_container.dart';
+import '../../widgets/lumi_states.dart';
 import 'home/widgets/category_section.dart';
+import 'home/widgets/concern_section.dart';
 import 'home/widgets/hero_carousel.dart';
 import 'home/widgets/home_sections.dart';
 
@@ -19,6 +23,13 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
     final featured = catalog.products.take(8).toList();
+    final flashSale = catalog.products
+        .where(
+          (product) =>
+              product.oldPrice != null && product.oldPrice! > product.price,
+        )
+        .take(8)
+        .toList();
     final brands =
         catalog.products
             .map((product) => product.brand)
@@ -30,66 +41,87 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(child: AppHeader()),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.section,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppBreakpoints.large,
+          Column(
+            children: [
+              const AppHeader(),
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.lg,
+                        bottom: AppSpacing.section,
                       ),
-                      child: Column(
-                        children: [
-                          const FadeSlideIn(child: HeroCarousel()),
-                          if (catalog.errorMessage != null) ...[
-                            const SizedBox(height: AppSpacing.lg),
-                            _BackendNotice(catalog: catalog),
-                          ],
-                          const SizedBox(height: AppSpacing.section),
-                          const FadeSlideIn(
-                            delay: Duration(milliseconds: 80),
-                            child: CategorySection(),
-                          ),
-                          const SizedBox(height: AppSpacing.section),
-                          FadeSlideIn(
-                            delay: const Duration(milliseconds: 120),
-                            child: const PersonalizedHomePreview(),
-                          ),
-                          const SizedBox(height: AppSpacing.section),
-                          if (catalog.isLoading && featured.isEmpty)
-                            const _CatalogLoading()
-                          else if (featured.isEmpty)
-                            const _CatalogEmpty()
-                          else
-                            FadeSlideIn(
-                              delay: const Duration(milliseconds: 160),
-                              child: ProductGridSection(
-                                title: 'Sản phẩm nổi bật',
-                                subtitle: 'Danh sách sản phẩm đang hoạt động và AI-ready trong catalog.',
-                                products: featured,
-                                actionLabel: 'Xem thêm',
-                                onAction: () => context.go('/search'),
+                      sliver: SliverToBoxAdapter(
+                        child: LumiContentContainer(
+                          child: Column(
+                            children: [
+                              const FadeSlideIn(child: HeroCarousel()),
+                              if (catalog.errorMessage != null) ...[
+                                const SizedBox(height: AppSpacing.lg),
+                                _BackendNotice(catalog: catalog),
+                              ],
+                              const SizedBox(height: AppSpacing.section),
+                              const FadeSlideIn(
+                                delay: Duration(milliseconds: 80),
+                                child: CategorySection(),
                               ),
-                            ),
-                          const SizedBox(height: AppSpacing.section),
-                          BrandShowcase(brands: brands),
-                          const SizedBox(height: AppSpacing.section),
-                          const TrustSection(),
-                        ],
+                              const SizedBox(height: AppSpacing.section),
+                              FadeSlideIn(
+                                delay: const Duration(milliseconds: 120),
+                                child: const LumiSectionSurface(
+                                  color: AppColors.lavenderMist,
+                                  child: PersonalizedHomePreview(),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.section),
+                              FadeSlideIn(
+                                delay: const Duration(milliseconds: 130),
+                                child: FlashSaleSection(products: flashSale),
+                              ),
+                              const SizedBox(height: AppSpacing.section),
+                              const FadeSlideIn(
+                                delay: Duration(milliseconds: 140),
+                                child: ConcernSection(),
+                              ),
+                              const SizedBox(height: AppSpacing.section),
+                              if (catalog.isLoading && featured.isEmpty)
+                                const _CatalogLoading()
+                              else if (featured.isEmpty)
+                                const _CatalogEmpty()
+                              else
+                                FadeSlideIn(
+                                  delay: const Duration(milliseconds: 160),
+                                  child: ProductGridSection(
+                                    title: 'Sản phẩm nổi bật',
+                                    subtitle: 'Những lựa chọn được yêu thích cho routine hằng ngày.',
+                                    products: featured,
+                                    actionLabel: 'Xem thêm',
+                                    onAction: () => context.go('/search'),
+                                  ),
+                                ),
+                              const SizedBox(height: AppSpacing.section),
+                              FadeSlideIn(
+                                child: LumiSectionSurface(
+                                  color: AppColors.pinkMist,
+                                  child: BrandShowcase(brands: brands),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.section),
+                              const FadeSlideIn(
+                                child: LumiSectionSurface(
+                                  child: TrustSection(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SliverToBoxAdapter(child: AppFooter()),
+                  ],
                 ),
               ),
-              const SliverToBoxAdapter(child: AppFooter()),
             ],
           ),
           const AiChatBox(),
@@ -134,10 +166,7 @@ class _CatalogLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 280,
-      child: Center(child: CircularProgressIndicator()),
-    );
+    return const LumiProductGridSkeleton();
   }
 }
 
@@ -146,23 +175,13 @@ class _CatalogEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.section),
-      child: Column(
-        children: [
-          const Icon(Icons.inventory_2_outlined, size: 52),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Chưa có sản phẩm để hiển thị.',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          OutlinedButton(
-            onPressed: () => context.go('/categories'),
-            child: const Text('Xem danh mục'),
-          ),
-        ],
-      ),
+    return LumiStateCard(
+      icon: Icons.inventory_2_outlined,
+      title: 'Chưa có sản phẩm để hiển thị.',
+      message:
+          'Hãy khám phá các danh mục khác trong lúc Lumi cập nhật sản phẩm.',
+      actionLabel: 'Xem danh mục',
+      onAction: () => context.go('/categories'),
     );
   }
 }

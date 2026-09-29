@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../providers/catalog_provider.dart';
+import '../../widgets/app_animations.dart';
 import '../../widgets/app_footer.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/lumi_states.dart';
 
 class BrandsPage extends StatelessWidget {
   const BrandsPage({super.key});
@@ -24,11 +27,18 @@ class BrandsPage extends StatelessWidget {
         slivers: [
           const SliverToBoxAdapter(child: AppHeader()),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(24, 48, 24, 64),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xxl,
+              AppSpacing.lg,
+              AppSpacing.section,
+            ),
             sliver: SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1280),
+                  constraints: const BoxConstraints(
+                    maxWidth: AppBreakpoints.content,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -36,12 +46,14 @@ class BrandsPage extends StatelessWidget {
                         'Thương hiệu',
                         style: Theme.of(context).textTheme.displaySmall,
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: AppSpacing.xl),
                       if (catalog.isLoading && brands.isEmpty)
-                        const Center(child: CircularProgressIndicator())
+                        const LumiProductGridSkeleton(count: 4)
                       else if (brands.isEmpty)
-                        const Text(
-                          'Chưa có thương hiệu trong catalog hiện tại.',
+                        const LumiStateCard(
+                          icon: Icons.diamond_outlined,
+                          title: 'Chưa có thương hiệu để hiển thị.',
+                          message: 'Vui lòng quay lại sau khi danh sách được cập nhật.',
                         )
                       else
                         Wrap(
@@ -52,11 +64,17 @@ class BrandsPage extends StatelessWidget {
                                 (brand) => SizedBox(
                                   width: 260,
                                   height: 116,
-                                  child: Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    child: InkWell(
-                                      onTap: () => context.go(
-                                        '/brand/${Uri.encodeComponent(brand)}',
+                                  child: HoverLift(
+                                    onTap: () => context.go(
+                                      '/brand/${Uri.encodeComponent(brand)}',
+                                    ),
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.card,
+                                        ),
+                                        boxShadow: AppShadows.soft,
                                       ),
                                       child: Center(
                                         child: Padding(

@@ -8,6 +8,7 @@ import '../../providers/cart_provider.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../utils/money.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/app_header.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
@@ -49,103 +50,112 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết sản phẩm')),
-      body: FutureBuilder<Product?>(
-        future: _productFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final product = snapshot.data;
-          if (product == null) {
-            return _ErrorState(
-              message:
-                  context.watch<CatalogProvider>().errorMessage ??
-                  'Không tìm thấy sản phẩm.',
-              onRetry: () {
-                setState(() {
-                  _productFuture = _loadPage();
-                });
-              },
-            );
-          }
+      body: Column(
+        children: [
+          const AppHeader(),
+          Expanded(
+            child: FutureBuilder<Product?>(
+              future: _productFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final product = snapshot.data;
+                if (product == null) {
+                  return _ErrorState(
+                    message:
+                        context.watch<CatalogProvider>().errorMessage ??
+                        'Không tìm thấy sản phẩm.',
+                    onRetry: () {
+                      setState(() {
+                        _productFuture = _loadPage();
+                      });
+                    },
+                  );
+                }
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 820;
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 20 : 50,
-                  vertical: compact ? 24 : 40,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (compact)
-                      Column(
-                        children: [
-                          _ProductImage(product: product, height: 360),
-                          const SizedBox(height: 28),
-                          _ProductInformation(
-                            product: product,
-                            quantity: quantity,
-                            formattedPrice: formatMoney(
-                              product.price,
-                              product.currency,
-                            ),
-                            onDecrease: quantity > 1
-                                ? () => setState(() => quantity--)
-                                : null,
-                            onIncrease:
-                                product.stock == null ||
-                                    quantity < product.stock!
-                                ? () => setState(() => quantity++)
-                                : null,
-                            onAddToCart: () => _addToCart(product),
-                            onBuyNow: () => _buyNow(product),
-                          ),
-                        ],
-                      )
-                    else
-                      Row(
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 820;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 20 : 50,
+                        vertical: compact ? 24 : 40,
+                      ),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: _ProductImage(product: product, height: 520),
-                          ),
-                          const SizedBox(width: 50),
-                          Expanded(
-                            child: _ProductInformation(
-                              product: product,
-                              quantity: quantity,
-                              formattedPrice: formatMoney(
-                                product.price,
-                                product.currency,
-                              ),
-                              onDecrease: quantity > 1
-                                  ? () => setState(() => quantity--)
-                                  : null,
-                              onIncrease:
-                                  product.stock == null ||
-                                      quantity < product.stock!
-                                  ? () => setState(() => quantity++)
-                                  : null,
-                              onAddToCart: () => _addToCart(product),
-                              onBuyNow: () => _buyNow(product),
+                          if (compact)
+                            Column(
+                              children: [
+                                _ProductImage(product: product, height: 360),
+                                const SizedBox(height: 28),
+                                _ProductInformation(
+                                  product: product,
+                                  quantity: quantity,
+                                  formattedPrice: formatMoney(
+                                    product.price,
+                                    product.currency,
+                                  ),
+                                  onDecrease: quantity > 1
+                                      ? () => setState(() => quantity--)
+                                      : null,
+                                  onIncrease:
+                                      product.stock == null ||
+                                          quantity < product.stock!
+                                      ? () => setState(() => quantity++)
+                                      : null,
+                                  onAddToCart: () => _addToCart(product),
+                                  onBuyNow: () => _buyNow(product),
+                                ),
+                              ],
+                            )
+                          else
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _ProductImage(
+                                    product: product,
+                                    height: 520,
+                                  ),
+                                ),
+                                const SizedBox(width: 50),
+                                Expanded(
+                                  child: _ProductInformation(
+                                    product: product,
+                                    quantity: quantity,
+                                    formattedPrice: formatMoney(
+                                      product.price,
+                                      product.currency,
+                                    ),
+                                    onDecrease: quantity > 1
+                                        ? () => setState(() => quantity--)
+                                        : null,
+                                    onIncrease:
+                                        product.stock == null ||
+                                            quantity < product.stock!
+                                        ? () => setState(() => quantity++)
+                                        : null,
+                                    onAddToCart: () => _addToCart(product),
+                                    onBuyNow: () => _buyNow(product),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                          const SizedBox(height: 56),
+                          _DetailSections(product: product),
+                          const SizedBox(height: 56),
+                          _RecommendationSection(currentProductId: product.id),
                         ],
                       ),
-                    const SizedBox(height: 56),
-                    _DetailSections(product: product),
-                    const SizedBox(height: 56),
-                    _RecommendationSection(currentProductId: product.id),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -449,7 +459,7 @@ class _RecommendationSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Kết quả từ ${recommendations.similarResult?.algorithm ?? 'hệ thống gợi ý'}.',
+          'Những lựa chọn có đặc điểm gần với sản phẩm bạn đang xem.',
           style: TextStyle(color: Colors.grey.shade700),
         ),
         const SizedBox(height: 20),

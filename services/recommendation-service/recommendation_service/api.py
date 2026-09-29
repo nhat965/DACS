@@ -438,6 +438,8 @@ def create_app(
         search: str | None = Query(default=None, max_length=120),
         category: str | None = Query(default=None, max_length=80),
         brand: str | None = Query(default=None, max_length=80),
+        concern: str | None = Query(default=None, max_length=80),
+        goal: str | None = Query(default=None, max_length=80),
         priceMin: float | None = Query(default=None, ge=0),
         priceMax: float | None = Query(default=None, ge=0),
         sort: str = Query(default="name_asc", pattern=r"^(name_asc|price_asc|price_desc)$"),
@@ -467,6 +469,21 @@ def create_app(
                 product
                 for product in products
                 if product.brand.casefold() == normalized_brand
+            ]
+        if concern:
+            normalized_concern = concern.strip().casefold()
+            products = [
+                product
+                for product in products
+                if normalized_concern
+                in {item.casefold() for item in product.skin_concerns}
+            ]
+        if goal:
+            normalized_goal = goal.strip().casefold()
+            products = [
+                product
+                for product in products
+                if normalized_goal in {item.casefold() for item in product.care_goals}
             ]
         if priceMin is not None:
             products = [

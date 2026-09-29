@@ -9,6 +9,7 @@ import '../providers/order_provider.dart';
 import '../providers/recommendation_provider.dart';
 import '../providers/preferences_provider.dart';
 import '../services/backend_api.dart';
+import '../widgets/lumi_page_background.dart';
 import 'routes.dart';
 import 'theme.dart';
 
@@ -75,6 +76,8 @@ class _LumiBeautyAppState extends State<LumiBeautyApp> {
         title: 'Lumi Beauty',
         theme: AppTheme.theme,
         routerConfig: _router,
+        builder: (context, child) =>
+            LumiPageBackground(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../providers/catalog_provider.dart';
 import '../../config/catalog_routes.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/lumi_states.dart';
 
 class CategoryPage extends StatelessWidget {
   final String category;
@@ -36,63 +38,76 @@ class CategoryPage extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(
-                MediaQuery.sizeOf(context).width < 600 ? 24 : 40,
+                MediaQuery.sizeOf(context).width < AppBreakpoints.mobile
+                    ? AppSpacing.lg
+                    : AppSpacing.xxl,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    pageTitle,
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                    ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AppBreakpoints.content,
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pageTitle,
+                        style: Theme.of(context).textTheme.displaySmall,
+                      ),
 
-                  const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                  Text(
-                    '${products.length} sản phẩm',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
+                      Text(
+                        '${products.length} sản phẩm',
+                        style: const TextStyle(color: AppColors.mutedInk),
+                      ),
 
-                  const SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
-                  catalog.isLoading && catalog.products.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : products.isEmpty
-                      ? const Center(
-                          child: Text('Không có sản phẩm trong danh mục này.'),
-                        )
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final columns = constraints.maxWidth >= 1200
-                                ? 5
-                                : constraints.maxWidth >= 900
-                                ? 4
-                                : constraints.maxWidth >= 600
-                                ? 3
-                                : constraints.maxWidth >= 320
-                                ? 2
-                                : 1;
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: products.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: columns,
-                                    crossAxisSpacing: 20,
-                                    mainAxisSpacing: 20,
-                                    childAspectRatio: columns == 1 ? 0.9 : 0.6,
-                                  ),
-                              itemBuilder: (context, index) {
-                                return ProductCard(product: products[index]);
+                      catalog.isLoading && catalog.products.isEmpty
+                          ? const LumiProductGridSkeleton()
+                          : products.isEmpty
+                          ? const LumiStateCard(
+                              icon: Icons.search_off_outlined,
+                              title: 'Chưa có sản phẩm trong danh mục này.',
+                              message:
+                                  'Hãy thử một danh mục hoặc thương hiệu khác.',
+                            )
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                final columns = constraints.maxWidth >= 1200
+                                    ? 5
+                                    : constraints.maxWidth >= 900
+                                    ? 4
+                                    : constraints.maxWidth >= 600
+                                    ? 3
+                                    : constraints.maxWidth >= 320
+                                    ? 2
+                                    : 1;
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: products.length,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: columns,
+                                        crossAxisSpacing: 20,
+                                        mainAxisSpacing: 20,
+                                        childAspectRatio: columns == 1
+                                            ? 0.9
+                                            : 0.6,
+                                      ),
+                                  itemBuilder: (context, index) {
+                                    return ProductCard(
+                                      product: products[index],
+                                    );
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
-                ],
+                            ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

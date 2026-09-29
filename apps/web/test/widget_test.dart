@@ -9,6 +9,8 @@ class _FakeBackendApi extends BackendApi {
     String? search,
     String? category,
     String? brand,
+    String? concern,
+    String? goal,
     int limit = 100,
     int offset = 0,
   }) async {
