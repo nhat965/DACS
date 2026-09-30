@@ -88,6 +88,13 @@ Hard constraint trả `FILTERED_OUT` cùng reason code như `USER_EXCLUDED_INGRE
 - `POST /orders`
 - `GET /orders`
 - `GET /admin/orders` (ADMIN)
+- `GET /admin/dashboard` (ADMIN)
+- `GET /admin/data-quality` (ADMIN)
+- `GET|POST /admin/products` và `GET|PUT /admin/products/{productId}` (ADMIN)
+- `PATCH /admin/products/{productId}/status|stock` (ADMIN)
+- `GET /admin/inventory` (ADMIN)
+- `GET /admin/orders/{orderId}` và `PATCH /admin/orders/{orderId}/status` (ADMIN)
+- `GET /admin/users` và `GET /admin/users/{userId}` (ADMIN)
 - `POST /behavior-events`
 - `POST /recommendations/personalized`
 - `GET /recommendations/similar-products/{productId}`

@@ -9,6 +9,7 @@ import '../../providers/recommendation_provider.dart';
 import '../../utils/money.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/product_reviews_section.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
@@ -145,6 +146,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             ),
                           const SizedBox(height: 56),
                           _DetailSections(product: product),
+                          const SizedBox(height: 56),
+                          ProductReviewsSection(productId: product.id),
                           const SizedBox(height: 56),
                           _RecommendationSection(currentProductId: product.id),
                         ],

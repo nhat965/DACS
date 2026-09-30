@@ -2,10 +2,12 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../models/product.dart';
+import '../models/product_review.dart';
 import '../models/beauty_preferences.dart';
 import '../models/recommendation.dart';
 import '../models/order.dart';
 import '../models/user_profile.dart';
+import '../models/admin_models.dart';
 
 class BackendApi {
   BackendApi({Dio? dio})
@@ -88,6 +90,34 @@ class BackendApi {
       '/products/$productId',
     );
     return Product.fromJson(response.data ?? const {});
+  }
+
+  Future<ProductReviewPage> getProductReviews({
+    required int productId,
+    String? accessToken,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/products/$productId/reviews',
+      queryParameters: {'limit': limit, 'offset': offset},
+      options: accessToken == null ? null : _authorized(accessToken),
+    );
+    return ProductReviewPage.fromJson(response.data ?? const {});
+  }
+
+  Future<ProductReview> saveProductReview({
+    required int productId,
+    required String accessToken,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/products/$productId/reviews',
+      options: _authorized(accessToken),
+      data: {'rating': rating, 'comment': comment.trim()},
+    );
+    return ProductReview.fromJson(response.data ?? const {});
   }
 
   Future<AuthSession> register({
@@ -195,6 +225,173 @@ class BackendApi {
     return (response.data ?? const {}).map(
       (key, value) => MapEntry(key, (value as num).toInt()),
     );
+  }
+
+  Future<AdminDashboardData> getAdminDashboard(String accessToken) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/dashboard',
+      options: _authorized(accessToken),
+    );
+    return AdminDashboardData.fromJson(response.data ?? const {});
+  }
+
+  Future<Map<String, int>> getAdminDataQuality(String accessToken) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/data-quality',
+      options: _authorized(accessToken),
+    );
+    return (response.data ?? const {}).map(
+      (key, value) => MapEntry(key, (value as num).toInt()),
+    );
+  }
+
+  Future<AdminProductPage> getAdminProducts({
+    required String accessToken,
+    String? search,
+    String? status,
+    int limit = 25,
+    int offset = 0,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/products',
+      options: _authorized(accessToken),
+      queryParameters: {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (status != null && status.isNotEmpty) 'status': status,
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    final data = response.data ?? const {};
+    return AdminProductPage(
+      items: (data['items'] as List<dynamic>? ?? const [])
+          .map((item) => AdminProduct.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      total: (data['total'] as num?)?.toInt() ?? 0,
+      limit: (data['limit'] as num?)?.toInt() ?? limit,
+      offset: (data['offset'] as num?)?.toInt() ?? offset,
+    );
+  }
+
+  Future<AdminProduct> getAdminProduct({
+    required String accessToken,
+    required int productId,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/products/$productId',
+      options: _authorized(accessToken),
+    );
+    return AdminProduct.fromJson(response.data ?? const {});
+  }
+
+  Future<AdminProduct> saveAdminProduct({
+    required String accessToken,
+    required Map<String, dynamic> data,
+    int? productId,
+  }) async {
+    final response = productId == null
+        ? await _dio.post<Map<String, dynamic>>(
+            '/admin/products',
+            data: data,
+            options: _authorized(accessToken),
+          )
+        : await _dio.put<Map<String, dynamic>>(
+            '/admin/products/$productId',
+            data: data,
+            options: _authorized(accessToken),
+          );
+    return AdminProduct.fromJson(response.data ?? const {});
+  }
+
+  Future<AdminProduct> updateAdminProductStatus({
+    required String accessToken,
+    required int productId,
+    required String status,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/admin/products/$productId/status',
+      data: {'status': status},
+      options: _authorized(accessToken),
+    );
+    return AdminProduct.fromJson(response.data ?? const {});
+  }
+
+  Future<AdminProduct> updateAdminProductStock({
+    required String accessToken,
+    required int productId,
+    required int stockQuantity,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/admin/products/$productId/stock',
+      data: {'stockQuantity': stockQuantity},
+      options: _authorized(accessToken),
+    );
+    return AdminProduct.fromJson(response.data ?? const {});
+  }
+
+  Future<List<AdminProduct>> getAdminInventory({
+    required String accessToken,
+    String? state,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/inventory',
+      queryParameters: {'state': ?state},
+      options: _authorized(accessToken),
+    );
+    return (response.data?['items'] as List<dynamic>? ?? const [])
+        .map((item) => AdminProduct.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<CustomerOrder> getAdminOrder({
+    required String accessToken,
+    required int orderId,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/orders/$orderId',
+      options: _authorized(accessToken),
+    );
+    return CustomerOrder.fromJson(response.data ?? const {});
+  }
+
+  Future<CustomerOrder> updateAdminOrderStatus({
+    required String accessToken,
+    required int orderId,
+    required String status,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/admin/orders/$orderId/status',
+      data: {'status': status},
+      options: _authorized(accessToken),
+    );
+    return CustomerOrder.fromJson(response.data ?? const {});
+  }
+
+  Future<List<AdminUser>> getAdminUsers({
+    required String accessToken,
+    String? search,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/users',
+      queryParameters: {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+      options: _authorized(accessToken),
+    );
+    return (response.data?['items'] as List<dynamic>? ?? const [])
+        .map((item) => AdminUser.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<AdminUser> getAdminUser({
+    required String accessToken,
+    required int userId,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/users/$userId',
+      options: _authorized(accessToken),
+    );
+    return AdminUser.fromJson(response.data ?? const {});
   }
 
   Future<RecommendationResult> getPersonalizedRecommendations({

@@ -15,6 +15,16 @@ class CommerceValidationError(ValueError):
     pass
 
 
+ORDER_TRANSITIONS = {
+    "PENDING": {"CONFIRMED", "CANCELED"},
+    "CONFIRMED": {"PROCESSING", "CANCELED"},
+    "PROCESSING": {"SHIPPING", "CANCELED"},
+    "SHIPPING": {"COMPLETED"},
+    "COMPLETED": set(),
+    "CANCELED": set(),
+}
+
+
 @dataclass(frozen=True)
 class UserRecord:
     id: int
@@ -293,6 +303,99 @@ class MySQLCommerceRepository:
             return self._load_orders("1 = 1", ())
         return self._load_orders("o.user_id = %s", (user_id,))
 
+    def list_product_reviews(
+        self,
+        *,
+        product_id: int,
+        viewer_user_id: int | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+            if cursor.fetchone() is None:
+                raise CommerceValidationError("Product not found")
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total, AVG(rating) AS average_rating
+                FROM product_reviews
+                WHERE product_id = %s
+                """,
+                (product_id,),
+            )
+            summary = cursor.fetchone() or {}
+            cursor.execute(
+                """
+                SELECT pr.id, pr.product_id, pr.user_id, u.full_name,
+                       pr.rating, pr.comment, pr.created_at, pr.updated_at
+                FROM product_reviews pr
+                JOIN users u ON u.id = pr.user_id
+                WHERE pr.product_id = %s
+                ORDER BY pr.updated_at DESC, pr.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (product_id, limit, offset),
+            )
+            items = [
+                _serialize_review(row, viewer_user_id=viewer_user_id)
+                for row in cursor.fetchall()
+            ]
+            return {
+                "items": items,
+                "total": int(summary.get("total") or 0),
+                "averageRating": float(summary["average_rating"])
+                if summary.get("average_rating") is not None
+                else None,
+                "limit": limit,
+                "offset": offset,
+            }
+        finally:
+            conn.close()
+
+    def save_product_review(
+        self, *, user_id: int, product_id: int, rating: int, comment: str
+    ) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+            if cursor.fetchone() is None:
+                raise CommerceValidationError("Product not found")
+            cursor.execute(
+                """
+                INSERT INTO product_reviews (product_id, user_id, rating, comment)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    rating = VALUES(rating),
+                    comment = VALUES(comment),
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (product_id, user_id, rating, comment.strip()),
+            )
+            conn.commit()
+            cursor.execute(
+                """
+                SELECT pr.id, pr.product_id, pr.user_id, u.full_name,
+                       pr.rating, pr.comment, pr.created_at, pr.updated_at
+                FROM product_reviews pr
+                JOIN users u ON u.id = pr.user_id
+                WHERE pr.product_id = %s AND pr.user_id = %s
+                LIMIT 1
+                """,
+                (product_id, user_id),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise RuntimeError("Saved review could not be loaded")
+            return _serialize_review(row, viewer_user_id=user_id)
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def get_admin_metrics(self) -> dict[str, int]:
         conn = self.database.connect()
         try:
@@ -321,6 +424,326 @@ class MySQLCommerceRepository:
             }
         finally:
             conn.close()
+
+    def get_admin_dashboard(self) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM products) AS total_products,
+                    (SELECT COUNT(*) FROM products WHERE ai_ready = TRUE) AS ai_ready_products,
+                    (SELECT COUNT(*) FROM products WHERE stock_quantity BETWEEN 1 AND 10) AS low_stock,
+                    (SELECT COUNT(*) FROM users WHERE role = 'CUSTOMER') AS users,
+                    (SELECT COUNT(*) FROM orders) AS orders,
+                    (SELECT COUNT(*) FROM orders WHERE status = 'PENDING') AS pending_orders,
+                    (SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURRENT_DATE) AS orders_today,
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM orders
+                     WHERE status = 'COMPLETED') AS completed_revenue,
+                    (SELECT COUNT(*) FROM recommendation_logs) AS recommendation_requests
+                """
+            )
+            row = cursor.fetchone() or {}
+            cursor.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM orders
+                GROUP BY status
+                """
+            )
+            statuses = {
+                str(item["status"]): int(item["count"])
+                for item in cursor.fetchall()
+            }
+            cursor.execute(
+                """
+                SELECT currency, COALESCE(SUM(total_amount), 0) AS revenue
+                FROM orders
+                WHERE status = 'COMPLETED'
+                GROUP BY currency
+                """
+            )
+            revenue_by_currency = {
+                str(item["currency"]): float(item["revenue"])
+                for item in cursor.fetchall()
+            }
+            return {
+                "totalProducts": int(row.get("total_products") or 0),
+                "aiReadyProducts": int(row.get("ai_ready_products") or 0),
+                "lowStockProducts": int(row.get("low_stock") or 0),
+                "users": int(row.get("users") or 0),
+                "orders": int(row.get("orders") or 0),
+                "pendingOrders": int(row.get("pending_orders") or 0),
+                "ordersToday": int(row.get("orders_today") or 0),
+                "recommendationRequests": int(row.get("recommendation_requests") or 0),
+                "orderStatuses": statuses,
+                "revenueByCurrency": revenue_by_currency,
+            }
+        finally:
+            conn.close()
+
+    def get_admin_data_quality(self) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN COALESCE(TRIM(inci_ingredients), '') <> '' THEN 1 ELSE 0 END) AS inci,
+                    SUM(CASE WHEN COALESCE(TRIM(skin_types), '') <> '' THEN 1 ELSE 0 END) AS skin_types,
+                    SUM(CASE WHEN COALESCE(TRIM(skin_concerns), '') <> '' THEN 1 ELSE 0 END) AS concerns,
+                    SUM(CASE WHEN COALESCE(TRIM(care_goals), '') <> '' THEN 1 ELSE 0 END) AS goals,
+                    SUM(CASE WHEN COALESCE(TRIM(image_url), '') <> '' THEN 1 ELSE 0 END) AS images,
+                    SUM(CASE WHEN price > 0 AND COALESCE(TRIM(currency), '') <> '' THEN 1 ELSE 0 END) AS prices,
+                    SUM(CASE WHEN ai_ready = TRUE THEN 1 ELSE 0 END) AS ai_ready
+                FROM products
+                """
+            )
+            row = cursor.fetchone() or {}
+            return {
+                "totalProducts": int(row.get("total") or 0),
+                "inciComplete": int(row.get("inci") or 0),
+                "skinTypeComplete": int(row.get("skin_types") or 0),
+                "concernComplete": int(row.get("concerns") or 0),
+                "careGoalComplete": int(row.get("goals") or 0),
+                "imageComplete": int(row.get("images") or 0),
+                "priceComplete": int(row.get("prices") or 0),
+                "aiReadyProducts": int(row.get("ai_ready") or 0),
+            }
+        finally:
+            conn.close()
+
+    def list_admin_products(
+        self,
+        *,
+        search: str | None = None,
+        status: str | None = None,
+        limit: int = 25,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        conditions = ["1 = 1"]
+        params: list[Any] = []
+        if search:
+            conditions.append("(p.name LIKE %s OR p.sku LIKE %s OR b.name LIKE %s)")
+            term = f"%{search.strip()}%"
+            params.extend([term, term, term])
+        if status:
+            conditions.append("p.status = %s")
+            params.append(status)
+        where_clause = " AND ".join(conditions)
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                f"""
+                SELECT COUNT(*) AS total
+                FROM products p
+                JOIN brands b ON b.id = p.brand_id
+                WHERE {where_clause}
+                """,
+                tuple(params),
+            )
+            total = int((cursor.fetchone() or {}).get("total") or 0)
+            cursor.execute(
+                f"""
+                SELECT p.*, b.name AS brand, c.name AS category
+                FROM products p
+                JOIN brands b ON b.id = p.brand_id
+                JOIN categories c ON c.id = p.category_id
+                WHERE {where_clause}
+                ORDER BY p.updated_at DESC, p.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (*params, limit, offset),
+            )
+            return {
+                "items": [_serialize_admin_product(dict(row)) for row in cursor.fetchall()],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+        finally:
+            conn.close()
+
+    def get_admin_product(self, product_id: int) -> dict[str, Any] | None:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT p.*, b.name AS brand, c.name AS category
+                FROM products p
+                JOIN brands b ON b.id = p.brand_id
+                JOIN categories c ON c.id = p.category_id
+                WHERE p.id = %s
+                LIMIT 1
+                """,
+                (product_id,),
+            )
+            row = cursor.fetchone()
+            return _serialize_admin_product(dict(row)) if row else None
+        finally:
+            conn.close()
+
+    def save_admin_product(
+        self, *, payload: dict[str, Any], product_id: int | None = None
+    ) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            brand_id = _lookup_id(cursor, "brands", payload["brand"])
+            category_id = _lookup_id(cursor, "categories", payload["category"])
+            values = (
+                payload["sku"].strip(), payload["name"].strip(), brand_id,
+                category_id, payload["price"], payload["currency"],
+                payload["stockQuantity"], payload.get("description"),
+                payload.get("benefits"), payload.get("inciIngredients"),
+                payload.get("keyIngredients"), _join_terms(payload.get("skinTypes")),
+                _join_terms(payload.get("skinConcerns")),
+                _join_terms(payload.get("careGoals")), payload.get("texture"),
+                payload.get("usageInstruction"), payload.get("warnings"),
+                payload.get("imageUrl"), payload.get("sourceUrl"),
+                payload["status"], bool(payload.get("aiReady")),
+            )
+            if product_id is None:
+                cursor.execute(
+                    """
+                    INSERT INTO products (
+                        sku, name, brand_id, category_id, price, currency,
+                        stock_quantity, description, benefits, inci_ingredients,
+                        key_ingredients, skin_types, skin_concerns, care_goals,
+                        texture, usage_instruction, warnings, image_url, source_url,
+                        status, ai_ready
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                    """,
+                    values,
+                )
+                product_id = int(cursor.lastrowid)
+            else:
+                cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+                if cursor.fetchone() is None:
+                    raise CommerceValidationError("Product not found")
+                cursor.execute(
+                    """
+                    UPDATE products SET
+                        sku=%s, name=%s, brand_id=%s, category_id=%s,
+                        price=%s, currency=%s, stock_quantity=%s,
+                        description=%s, benefits=%s, inci_ingredients=%s,
+                        key_ingredients=%s, skin_types=%s, skin_concerns=%s,
+                        care_goals=%s, texture=%s, usage_instruction=%s,
+                        warnings=%s, image_url=%s, source_url=%s,
+                        status=%s, ai_ready=%s
+                    WHERE id=%s
+                    """,
+                    (*values, product_id),
+                )
+            conn.commit()
+        except Exception as exc:
+            conn.rollback()
+            if getattr(exc, "errno", None) == 1062:
+                raise CommerceValidationError("SKU already exists") from exc
+            raise
+        finally:
+            conn.close()
+        product = self.get_admin_product(product_id)
+        if product is None:
+            raise RuntimeError("Saved product could not be loaded")
+        return product
+
+    def update_product_status(self, product_id: int, status: str) -> dict[str, Any]:
+        return self._update_product_field(product_id, "status", status)
+
+    def update_product_stock(self, product_id: int, stock: int) -> dict[str, Any]:
+        return self._update_product_field(product_id, "stock_quantity", stock)
+
+    def _update_product_field(
+        self, product_id: int, column: str, value: Any
+    ) -> dict[str, Any]:
+        if column not in {"status", "stock_quantity"}:
+            raise ValueError("Unsupported product field")
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+            if cursor.fetchone() is None:
+                raise CommerceValidationError("Product not found")
+            cursor.execute(f"UPDATE products SET {column} = %s WHERE id = %s", (value, product_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        product = self.get_admin_product(product_id)
+        if product is None:
+            raise RuntimeError("Updated product could not be loaded")
+        return product
+
+    def update_order_status(self, order_id: int, status: str) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT status FROM orders WHERE id = %s FOR UPDATE", (order_id,))
+            row = cursor.fetchone()
+            if row is None:
+                raise CommerceValidationError("Order not found")
+            current = str(row["status"])
+            if status not in ORDER_TRANSITIONS.get(current, set()):
+                raise CommerceValidationError(
+                    f"Invalid order status transition: {current} -> {status}"
+                )
+            cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (status, order_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        order = self.get_order(order_id=order_id)
+        if order is None:
+            raise RuntimeError("Updated order could not be loaded")
+        return order
+
+    def list_admin_users(self, *, search: str | None = None) -> list[dict[str, Any]]:
+        params: list[Any] = []
+        where = "1 = 1"
+        if search:
+            term = f"%{search.strip()}%"
+            where = "(u.full_name LIKE %s OR u.email LIKE %s)"
+            params.extend([term, term])
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                f"""
+                SELECT u.id, u.full_name, u.email, u.role, u.skin_type,
+                       u.created_at, u.updated_at, COUNT(o.id) AS order_count
+                FROM users u
+                LEFT JOIN orders o ON o.user_id = u.id
+                WHERE {where}
+                GROUP BY u.id, u.full_name, u.email, u.role, u.skin_type,
+                         u.created_at, u.updated_at
+                ORDER BY u.created_at DESC, u.id DESC
+                """,
+                tuple(params),
+            )
+            return [_serialize_admin_user(dict(row)) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_admin_user(self, user_id: int) -> dict[str, Any] | None:
+        users = [item for item in self.list_admin_users() if item["userId"] == user_id]
+        if not users:
+            return None
+        result = dict(users[0])
+        result["preferences"] = self.get_preferences(user_id)
+        result["orders"] = self.list_orders(user_id=user_id)
+        return result
 
     def _load_orders(self, where_clause: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
         conn = self.database.connect()
@@ -395,6 +818,26 @@ def _serialize_order(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _serialize_review(
+    row: dict[str, Any], *, viewer_user_id: int | None = None
+) -> dict[str, Any]:
+    def timestamp(value: Any) -> str:
+        return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+    return {
+        "reviewId": int(row["id"]),
+        "productId": int(row["product_id"]),
+        "userId": int(row["user_id"]),
+        "authorName": str(row.get("full_name") or "Khách hàng Lumi"),
+        "rating": int(row["rating"]),
+        "comment": str(row.get("comment") or ""),
+        "createdAt": timestamp(row["created_at"]),
+        "updatedAt": timestamp(row["updated_at"]),
+        "isMine": viewer_user_id is not None
+        and int(row["user_id"]) == viewer_user_id,
+    }
+
+
 def _join_terms(values: Any) -> str | None:
     terms = [str(value).strip() for value in (values or []) if str(value).strip()]
     return ",".join(terms) or None
@@ -418,4 +861,62 @@ def _serialize_preferences(row: dict[str, Any]) -> dict[str, Any]:
         "budgetMax": float(row["budget_max"]) if row.get("budget_max") is not None else None,
         "currency": str(row.get("budget_currency") or "USD"),
         "completed": bool(row),
+    }
+
+
+def _lookup_id(cursor, table: str, name: str) -> int:
+    if table not in {"brands", "categories"}:
+        raise ValueError("Unsupported lookup table")
+    cursor.execute(f"SELECT id FROM {table} WHERE name = %s LIMIT 1", (name.strip(),))
+    row = cursor.fetchone()
+    if row is None:
+        raise CommerceValidationError(f"Unknown {table[:-1]}: {name}")
+    return int(row["id"])
+
+
+def _serialize_admin_product(row: dict[str, Any]) -> dict[str, Any]:
+    def timestamp(value: Any) -> str | None:
+        return value.isoformat() if hasattr(value, "isoformat") else str(value) if value else None
+
+    return {
+        "productId": int(row["id"]),
+        "sku": str(row.get("sku") or ""),
+        "name": str(row.get("name") or ""),
+        "brand": str(row.get("brand") or ""),
+        "category": str(row.get("category") or ""),
+        "price": float(row.get("price") or 0),
+        "currency": str(row.get("currency") or "USD"),
+        "stockQuantity": int(row.get("stock_quantity") or 0),
+        "description": str(row.get("description") or ""),
+        "benefits": str(row.get("benefits") or ""),
+        "inciIngredients": str(row.get("inci_ingredients") or ""),
+        "keyIngredients": str(row.get("key_ingredients") or ""),
+        "skinTypes": _split_terms(row.get("skin_types")),
+        "skinConcerns": _split_terms(row.get("skin_concerns")),
+        "careGoals": _split_terms(row.get("care_goals")),
+        "texture": str(row.get("texture") or ""),
+        "usageInstruction": str(row.get("usage_instruction") or ""),
+        "warnings": str(row.get("warnings") or ""),
+        "imageUrl": str(row.get("image_url") or ""),
+        "sourceUrl": str(row.get("source_url") or ""),
+        "status": str(row.get("status") or "DRAFT"),
+        "aiReady": bool(row.get("ai_ready")),
+        "createdAt": timestamp(row.get("created_at")),
+        "updatedAt": timestamp(row.get("updated_at")),
+    }
+
+
+def _serialize_admin_user(row: dict[str, Any]) -> dict[str, Any]:
+    def timestamp(value: Any) -> str | None:
+        return value.isoformat() if hasattr(value, "isoformat") else str(value) if value else None
+
+    return {
+        "userId": int(row["id"]),
+        "fullName": str(row.get("full_name") or ""),
+        "email": str(row.get("email") or ""),
+        "role": str(row.get("role") or "CUSTOMER"),
+        "skinType": row.get("skin_type"),
+        "orderCount": int(row.get("order_count") or 0),
+        "createdAt": timestamp(row.get("created_at")),
+        "updatedAt": timestamp(row.get("updated_at")),
     }

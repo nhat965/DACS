@@ -31,6 +31,7 @@ class CustomerOrder {
   final String shippingPhone;
   final String shippingAddress;
   final String paymentMethod;
+  final String? note;
   final DateTime? createdAt;
   final List<OrderItem> items;
 
@@ -44,6 +45,7 @@ class CustomerOrder {
     required this.shippingPhone,
     required this.shippingAddress,
     required this.paymentMethod,
+    this.note,
     required this.createdAt,
     required this.items,
   });
@@ -59,6 +61,7 @@ class CustomerOrder {
       shippingPhone: json['shippingPhone']?.toString() ?? '',
       shippingAddress: json['shippingAddress']?.toString() ?? '',
       paymentMethod: json['paymentMethod']?.toString() ?? 'COD',
+      note: json['note']?.toString(),
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       items: (json['items'] as List<dynamic>? ?? const [])
           .map((item) => OrderItem.fromJson(item as Map<String, dynamic>))

@@ -208,6 +208,175 @@ paths:
                 $ref: "#/components/schemas/OrderListResponse"
         "403":
           description: ADMIN role required
+  /admin/dashboard:
+    get:
+      summary: Get operational dashboard metrics as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Dashboard metrics from authoritative database data
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminDashboard"}
+        "403": {description: ADMIN role required}
+  /admin/data-quality:
+    get:
+      summary: Get catalog field coverage across all products as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Authoritative product data-quality counters}
+        "403": {description: ADMIN role required}
+  /admin/products:
+    get:
+      summary: Search and paginate all products as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [ACTIVE, INACTIVE, DRAFT, ARCHIVED]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+      responses:
+        "200": {description: Paginated admin product list}
+        "403": {description: ADMIN role required}
+    post:
+      summary: Create a product as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AdminProductPayload"}
+      responses:
+        "201": {description: Product created}
+        "422": {description: Invalid product or AI-ready requirements not met}
+  /admin/products/{productId}:
+    parameters:
+      - {name: productId, in: path, required: true, schema: {type: integer, minimum: 1}}
+    get:
+      summary: Get one product as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Admin product detail}
+        "404": {description: Product not found}
+    put:
+      summary: Update a product as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AdminProductPayload"}
+      responses:
+        "200": {description: Product updated}
+        "404": {description: Product not found}
+  /admin/products/{productId}/status:
+    patch:
+      summary: Update product publication status as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: productId, in: path, required: true, schema: {type: integer, minimum: 1}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: {type: string, enum: [ACTIVE, INACTIVE, DRAFT, ARCHIVED]}
+      responses:
+        "200": {description: Product status updated}
+  /admin/products/{productId}/stock:
+    patch:
+      summary: Update product stock as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: productId, in: path, required: true, schema: {type: integer, minimum: 1}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stockQuantity]
+              properties:
+                stockQuantity: {type: integer, minimum: 0}
+      responses:
+        "200": {description: Product stock updated}
+  /admin/inventory:
+    get:
+      summary: List inventory as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Inventory product list}
+  /admin/orders/{orderId}:
+    get:
+      summary: Get one order as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: orderId, in: path, required: true, schema: {type: integer, minimum: 1}}
+      responses:
+        "200": {description: Order detail}
+        "404": {description: Order not found}
+  /admin/orders/{orderId}/status:
+    patch:
+      summary: Advance order status as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: orderId, in: path, required: true, schema: {type: integer, minimum: 1}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: {type: string, enum: [PENDING, CONFIRMED, PROCESSING, SHIPPING, COMPLETED, CANCELED]}
+      responses:
+        "200": {description: Order status updated}
+        "409": {description: Invalid status transition}
+  /admin/users:
+    get:
+      summary: Search users as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: User list without credential fields}
+  /admin/users/{userId}:
+    get:
+      summary: Get user profile, preferences and orders as ADMIN
+      tags: [Admin]
+      x-implementation-status: IMPLEMENTED
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: userId, in: path, required: true, schema: {type: integer, minimum: 1}}
+      responses:
+        "200": {description: Admin-safe user detail}
+        "404": {description: User not found}
   /behavior-events:
     post:
       summary: Track a user behavior event
@@ -365,6 +534,45 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AdminDashboard:
+      type: object
+      required: [totalProducts, aiReadyProducts, lowStockProducts, users, orders, pendingOrders, ordersToday, recommendationRequests, orderStatuses, revenueByCurrency]
+      properties:
+        totalProducts: {type: integer, minimum: 0}
+        aiReadyProducts: {type: integer, minimum: 0}
+        lowStockProducts: {type: integer, minimum: 0}
+        users: {type: integer, minimum: 0}
+        orders: {type: integer, minimum: 0}
+        pendingOrders: {type: integer, minimum: 0}
+        ordersToday: {type: integer, minimum: 0}
+        recommendationRequests: {type: integer, minimum: 0}
+        orderStatuses: {type: object, additionalProperties: {type: integer}}
+        revenueByCurrency: {type: object, additionalProperties: {type: number}}
+    AdminProductPayload:
+      type: object
+      required: [sku, name, brand, category, price, currency, stockQuantity, status, aiReady]
+      properties:
+        sku: {type: string}
+        name: {type: string}
+        brand: {type: string}
+        category: {type: string}
+        price: {type: number, exclusiveMinimum: 0}
+        currency: {type: string, pattern: "^[A-Z]{3}$"}
+        stockQuantity: {type: integer, minimum: 0}
+        status: {type: string, enum: [ACTIVE, INACTIVE, DRAFT, ARCHIVED]}
+        aiReady: {type: boolean}
+        description: {type: string}
+        benefits: {type: string}
+        inciIngredients: {type: string}
+        keyIngredients: {type: string}
+        skinTypes: {type: array, items: {type: string}}
+        skinConcerns: {type: array, items: {type: string}}
+        careGoals: {type: array, items: {type: string}}
+        texture: {type: string}
+        usageInstruction: {type: string}
+        warnings: {type: string}
+        imageUrl: {type: string}
+        sourceUrl: {type: string}
     Product:
       type: object
       required: [productId, sku, name, brand, category, skinTypes, skinConcerns, careGoals]

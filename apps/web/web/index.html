@@ -18,19 +18,32 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Lumi Beauty — mỹ phẩm và gợi ý chăm sóc cá nhân hóa.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="doancoso">
+  <meta name="apple-mobile-web-app-title" content="Lumi Beauty">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>doancoso</title>
+  <title>Lumi Beauty</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /*
+      Flutter paints the visible application on CanvasKit and mirrors its
+      semantics into DOM nodes for assistive technologies. Keep that mirror
+      visually transparent at every desktop viewport; using a filter preserves
+      the accessibility tree while preventing Chrome from exposing the mirror
+      after a resize or DevTools toggle.
+    */
+    flt-semantics-host {
+      filter: opacity(0%) !important;
+      color: transparent !important;
+    }
+  </style>
 </head>
 <body>
   <!--

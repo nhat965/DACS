@@ -24,5 +24,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('LUMI BEAUTY'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }

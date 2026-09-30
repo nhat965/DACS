@@ -26,7 +26,36 @@ class FakeCommerceRepository:
             )
         }
         self.orders: list[dict] = []
+        self.reviews: dict[tuple[int, int], dict] = {}
         self.preferences: dict[int, dict] = {}
+        self.products: dict[int, dict] = {
+            1: {
+                "productId": 1,
+                "sku": "P1",
+                "name": "Cleanser",
+                "brand": "COSRX",
+                "category": "cleanser",
+                "price": 15.0,
+                "currency": "USD",
+                "stockQuantity": 8,
+                "description": "Gentle cleanser",
+                "benefits": "Cleanses skin",
+                "inciIngredients": "Water",
+                "keyIngredients": "Water",
+                "skinTypes": ["oily"],
+                "skinConcerns": ["acne"],
+                "careGoals": ["oil_control"],
+                "texture": "gel",
+                "usageInstruction": "Use daily",
+                "warnings": "",
+                "imageUrl": "https://example.test/p1.jpg",
+                "sourceUrl": "https://example.test/p1",
+                "status": "ACTIVE",
+                "aiReady": True,
+                "createdAt": "2026-09-28T00:00:00",
+                "updatedAt": "2026-09-28T00:00:00",
+            }
+        }
 
     def create_user(self, *, full_name, email, password_hash):
         if self.get_user_by_email(email):
@@ -81,6 +110,112 @@ class FakeCommerceRepository:
         if user_id is None:
             return list(self.orders)
         return [order for order in self.orders if order["userId"] == user_id]
+
+    def list_product_reviews(
+        self, *, product_id, viewer_user_id=None, limit=20, offset=0
+    ):
+        items = [
+            {**review, "isMine": review["userId"] == viewer_user_id}
+            for (review_product_id, _), review in self.reviews.items()
+            if review_product_id == product_id
+        ]
+        ratings = [item["rating"] for item in items]
+        return {
+            "items": items[offset : offset + limit],
+            "total": len(items),
+            "averageRating": sum(ratings) / len(ratings) if ratings else None,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    def save_product_review(self, *, user_id, product_id, rating, comment):
+        if product_id not in self.products:
+            raise CommerceValidationError("Product not found")
+        review = {
+            "reviewId": len(self.reviews) + 1,
+            "productId": product_id,
+            "userId": user_id,
+            "authorName": self.users[user_id].full_name,
+            "rating": rating,
+            "comment": comment,
+            "createdAt": "2026-09-30T00:00:00",
+            "updatedAt": "2026-09-30T00:00:00",
+            "isMine": True,
+        }
+        self.reviews[(product_id, user_id)] = review
+        return review
+
+    def get_order(self, *, order_id):
+        return next((order for order in self.orders if order["orderId"] == order_id), None)
+
+    def update_order_status(self, order_id, status):
+        order = self.get_order(order_id=order_id)
+        if order is None:
+            raise CommerceValidationError("Order not found")
+        allowed = {
+            "PENDING": {"CONFIRMED", "CANCELED"},
+            "CONFIRMED": {"PROCESSING", "CANCELED"},
+            "PROCESSING": {"SHIPPING", "CANCELED"},
+            "SHIPPING": {"COMPLETED"},
+        }
+        if status not in allowed.get(order["status"], set()):
+            raise CommerceValidationError("Invalid order status transition")
+        order["status"] = status
+        return order
+
+    def get_admin_metrics(self):
+        return {"totalProducts": len(self.products), "aiReadyProducts": 1, "productionCandidates": 1, "orders": len(self.orders), "users": len(self.users), "recommendationRequests": 0}
+
+    def get_admin_dashboard(self):
+        return {"totalProducts": len(self.products), "aiReadyProducts": 1, "lowStockProducts": 1, "users": 1, "orders": len(self.orders), "pendingOrders": len([order for order in self.orders if order["status"] == "PENDING"]), "ordersToday": 0, "recommendationRequests": 0, "orderStatuses": {}, "revenueByCurrency": {}}
+
+    def get_admin_data_quality(self):
+        return {"totalProducts": 1, "inciComplete": 1, "skinTypeComplete": 1, "concernComplete": 1, "careGoalComplete": 1, "imageComplete": 1, "priceComplete": 1, "aiReadyProducts": 1}
+
+    def list_admin_products(self, *, search=None, status=None, limit=25, offset=0):
+        items = list(self.products.values())
+        if search:
+            term = search.lower()
+            items = [item for item in items if term in item["name"].lower() or term in item["sku"].lower()]
+        if status:
+            items = [item for item in items if item["status"] == status]
+        return {"items": items[offset:offset + limit], "total": len(items), "limit": limit, "offset": offset}
+
+    def get_admin_product(self, product_id):
+        return self.products.get(product_id)
+
+    def save_admin_product(self, *, payload, product_id=None):
+        product_id = product_id or max(self.products) + 1
+        product = {"productId": product_id, **payload, "createdAt": "2026-09-30T00:00:00", "updatedAt": "2026-09-30T00:00:00"}
+        self.products[product_id] = product
+        return product
+
+    def update_product_status(self, product_id, status):
+        product = self.products.get(product_id)
+        if product is None:
+            raise CommerceValidationError("Product not found")
+        product["status"] = status
+        return product
+
+    def update_product_stock(self, product_id, stock):
+        product = self.products.get(product_id)
+        if product is None:
+            raise CommerceValidationError("Product not found")
+        product["stockQuantity"] = stock
+        return product
+
+    def list_admin_users(self, *, search=None):
+        users = [{"userId": user.id, "fullName": user.full_name, "email": user.email, "role": user.role, "skinType": user.skin_type, "orderCount": len(self.list_orders(user_id=user.id)), "createdAt": "2026-09-28T00:00:00"} for user in self.users.values()]
+        if search:
+            term = search.lower()
+            users = [user for user in users if term in user["fullName"].lower() or term in user["email"].lower()]
+        return users
+
+    def get_admin_user(self, user_id):
+        user = next((item for item in self.list_admin_users() if item["userId"] == user_id), None)
+        if user is None:
+            return None
+        return {**user, "preferences": self.get_preferences(user_id), "orders": self.list_orders(user_id=user_id)}
 
     def get_preferences(self, user_id):
         return self.preferences.get(
@@ -188,6 +323,50 @@ class CommerceApiTest(unittest.TestCase):
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.json()["skinType"], "oily")
 
+    def test_customer_can_create_update_and_read_product_review(self):
+        empty = self.client.get("/products/1/reviews")
+        self.assertEqual(empty.status_code, 200)
+        self.assertEqual(empty.json()["total"], 0)
+
+        token = self._register().json()["accessToken"]
+        headers = {"Authorization": f"Bearer {token}"}
+        created = self.client.post(
+            "/products/1/reviews",
+            headers=headers,
+            json={"rating": 5, "comment": "Dịu nhẹ và dễ sử dụng."},
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json()["rating"], 5)
+
+        updated = self.client.post(
+            "/products/1/reviews",
+            headers=headers,
+            json={"rating": 4, "comment": "Dùng tốt, tôi sẽ tiếp tục theo dõi."},
+        )
+        self.assertEqual(updated.status_code, 201)
+        self.assertEqual(len(self.repository.reviews), 1)
+
+        listing = self.client.get("/products/1/reviews", headers=headers)
+        self.assertEqual(listing.json()["total"], 1)
+        self.assertEqual(listing.json()["averageRating"], 4)
+        self.assertTrue(listing.json()["items"][0]["isMine"])
+
+    def test_product_review_requires_login_and_valid_content(self):
+        guest = self.client.post(
+            "/products/1/reviews",
+            json={"rating": 5, "comment": "Sản phẩm tốt."},
+        )
+        self.assertEqual(guest.status_code, 401)
+
+        token = self._register().json()["accessToken"]
+        headers = {"Authorization": f"Bearer {token}"}
+        invalid = self.client.post(
+            "/products/1/reviews",
+            headers=headers,
+            json={"rating": 6, "comment": "  "},
+        )
+        self.assertEqual(invalid.status_code, 422)
+
     def test_customer_can_create_and_list_authoritative_order(self):
         token = self._register().json()["accessToken"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -244,6 +423,39 @@ class CommerceApiTest(unittest.TestCase):
             self.client.get("/admin/orders", headers=admin_headers).status_code,
             200,
         )
+
+    def test_admin_operational_endpoints_are_protected_and_functional(self):
+        customer_token = self._register().json()["accessToken"]
+        customer_headers = {"Authorization": f"Bearer {customer_token}"}
+        for path in ("/admin/dashboard", "/admin/data-quality", "/admin/products", "/admin/inventory", "/admin/users"):
+            self.assertEqual(self.client.get(path, headers=customer_headers).status_code, 403)
+
+        admin_login = self.client.post("/auth/login", json={"email": "admin@lumi.test", "password": "Admin123"})
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['accessToken']}"}
+        self.assertEqual(self.client.get("/admin/dashboard", headers=admin_headers).status_code, 200)
+        self.assertEqual(self.client.get("/admin/data-quality", headers=admin_headers).json()["inciComplete"], 1)
+        products = self.client.get("/admin/products", headers=admin_headers)
+        self.assertEqual(products.status_code, 200)
+        self.assertEqual(products.json()["total"], 1)
+        stock = self.client.patch("/admin/products/1/stock", headers=admin_headers, json={"stockQuantity": 4})
+        self.assertEqual(stock.status_code, 200)
+        self.assertEqual(stock.json()["stockQuantity"], 4)
+        self.assertEqual(self.client.get("/admin/users", headers=admin_headers).status_code, 200)
+
+    def test_admin_order_status_transition(self):
+        customer_token = self._register().json()["accessToken"]
+        order = self.client.post(
+            "/orders",
+            headers={"Authorization": f"Bearer {customer_token}"},
+            json={"items": [{"productId": 1, "quantity": 1}], "currency": "USD", "shippingName": "Lumi Customer", "shippingPhone": "0900000000", "shippingAddress": "1 Beauty Street", "paymentMethod": "COD"},
+        ).json()
+        admin_login = self.client.post("/auth/login", json={"email": "admin@lumi.test", "password": "Admin123"})
+        headers = {"Authorization": f"Bearer {admin_login.json()['accessToken']}"}
+        updated = self.client.patch(f"/admin/orders/{order['orderId']}/status", headers=headers, json={"status": "CONFIRMED"})
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()["status"], "CONFIRMED")
+        invalid = self.client.patch(f"/admin/orders/{order['orderId']}/status", headers=headers, json={"status": "COMPLETED"})
+        self.assertEqual(invalid.status_code, 409)
 
 
 if __name__ == "__main__":

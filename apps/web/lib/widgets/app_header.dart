@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../app/design_tokens.dart';
+import '../models/product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../services/backend_api.dart';
+import '../utils/money.dart';
 
 const _navigationItems = <({String label, String route, IconData icon})>[
   (
@@ -146,15 +151,99 @@ class _HeaderSearch extends StatefulWidget {
 
 class _HeaderSearchState extends State<_HeaderSearch> {
   final controller = TextEditingController();
+  final focusNode = FocusNode();
+  final layerLink = LayerLink();
+  final tapGroup = Object();
+  final api = BackendApi();
+
+  Timer? debounce;
+  OverlayEntry? suggestionsOverlay;
+  List<Product> suggestions = const [];
+  bool loading = false;
+  int requestSequence = 0;
+  double fieldWidth = 0;
 
   @override
   void dispose() {
+    debounce?.cancel();
+    suggestionsOverlay?.remove();
+    focusNode.dispose();
     controller.dispose();
     super.dispose();
   }
 
+  void onQueryChanged(String rawQuery) {
+    debounce?.cancel();
+    final query = rawQuery.trim();
+    if (query.length < 2) {
+      requestSequence++;
+      loading = false;
+      suggestions = const [];
+      closeSuggestions();
+      return;
+    }
+
+    loading = true;
+    showSuggestions();
+    debounce = Timer(const Duration(milliseconds: 350), () {
+      loadSuggestions(query);
+    });
+  }
+
+  Future<void> loadSuggestions(String query) async {
+    final sequence = ++requestSequence;
+    try {
+      final result = await api.getProductPage(search: query, limit: 6);
+      if (!mounted || sequence != requestSequence) return;
+      suggestions = result.items;
+    } catch (_) {
+      if (!mounted || sequence != requestSequence) return;
+      suggestions = const [];
+    } finally {
+      if (mounted && sequence == requestSequence) {
+        loading = false;
+        showSuggestions();
+      }
+    }
+  }
+
+  void showSuggestions() {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    fieldWidth = renderBox?.size.width ?? fieldWidth;
+    if (suggestionsOverlay == null) {
+      suggestionsOverlay = OverlayEntry(
+        builder: (context) => _SearchSuggestionsOverlay(
+          link: layerLink,
+          width: fieldWidth,
+          tapGroup: tapGroup,
+          query: controller.text.trim(),
+          loading: loading,
+          products: suggestions,
+          onProductSelected: openProduct,
+          onShowAll: submit,
+        ),
+      );
+      Overlay.of(context).insert(suggestionsOverlay!);
+    } else {
+      suggestionsOverlay!.markNeedsBuild();
+    }
+  }
+
+  void closeSuggestions() {
+    suggestionsOverlay?.remove();
+    suggestionsOverlay = null;
+  }
+
+  void openProduct(Product product) {
+    closeSuggestions();
+    focusNode.unfocus();
+    context.go('/product/${product.id}');
+  }
+
   void submit() {
     final query = controller.text.trim();
+    closeSuggestions();
+    focusNode.unfocus();
     context.go(
       Uri(
         path: '/search',
@@ -165,20 +254,276 @@ class _HeaderSearchState extends State<_HeaderSearch> {
 
   @override
   Widget build(BuildContext context) {
-    return SearchBar(
-      controller: controller,
-      hintText: 'Tìm sản phẩm, thương hiệu…',
-      leading: const Icon(Icons.search),
-      trailing: [
-        IconButton(
-          tooltip: 'Tìm kiếm',
-          onPressed: submit,
-          icon: const Icon(Icons.arrow_forward),
+    return TapRegion(
+      groupId: tapGroup,
+      onTapOutside: (_) => closeSuggestions(),
+      child: CompositedTransformTarget(
+        link: layerLink,
+        child: SearchBar(
+          controller: controller,
+          focusNode: focusNode,
+          hintText: 'Tìm sản phẩm, thương hiệu…',
+          leading: const Icon(Icons.search),
+          trailing: [
+            if (controller.text.isNotEmpty)
+              IconButton(
+                tooltip: 'Xóa từ khóa',
+                onPressed: () {
+                  controller.clear();
+                  onQueryChanged('');
+                  setState(() {});
+                  focusNode.requestFocus();
+                },
+                icon: const Icon(Icons.close, size: 20),
+              ),
+            IconButton(
+              tooltip: 'Tìm kiếm',
+              onPressed: submit,
+              icon: const Icon(Icons.arrow_forward),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {});
+            onQueryChanged(value);
+          },
+          onSubmitted: (_) => submit(),
+          backgroundColor: const WidgetStatePropertyAll(AppColors.surface),
+          elevation: const WidgetStatePropertyAll(0),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchSuggestionsOverlay extends StatelessWidget {
+  const _SearchSuggestionsOverlay({
+    required this.link,
+    required this.width,
+    required this.tapGroup,
+    required this.query,
+    required this.loading,
+    required this.products,
+    required this.onProductSelected,
+    required this.onShowAll,
+  });
+
+  final LayerLink link;
+  final double width;
+  final Object tapGroup;
+  final String query;
+  final bool loading;
+  final List<Product> products;
+  final ValueChanged<Product> onProductSelected;
+  final VoidCallback onShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: CompositedTransformFollower(
+        link: link,
+        showWhenUnlinked: false,
+        targetAnchor: Alignment.bottomLeft,
+        followerAnchor: Alignment.topLeft,
+        offset: const Offset(0, AppSpacing.xs),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: TapRegion(
+            groupId: tapGroup,
+            child: Material(
+              color: AppColors.surface,
+              elevation: 10,
+              shadowColor: AppColors.deepPlum.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              clipBehavior: Clip.antiAlias,
+              child: SizedBox(
+                width: width,
+                child: AnimatedSwitcher(
+                  duration: AppDurations.feedback,
+                  child: loading
+                      ? const _SuggestionLoading()
+                      : _SuggestionResults(
+                          query: query,
+                          products: products,
+                          onProductSelected: onProductSelected,
+                          onShowAll: onShowAll,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionLoading extends StatelessWidget {
+  const _SuggestionLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      key: ValueKey('loading'),
+      padding: EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: [
+          SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Text('Đang tìm sản phẩm phù hợp…'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuggestionResults extends StatelessWidget {
+  const _SuggestionResults({
+    required this.query,
+    required this.products,
+    required this.onProductSelected,
+    required this.onShowAll,
+  });
+
+  final String query;
+  final List<Product> products;
+  final ValueChanged<Product> onProductSelected;
+  final VoidCallback onShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return Padding(
+        key: const ValueKey('empty'),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            const Icon(Icons.search_off_outlined, color: AppColors.mutedInk),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: Text('Không tìm thấy sản phẩm cho “$query”.')),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      key: ValueKey('results-$query'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+          ),
+          child: Text(
+            'Sản phẩm gợi ý',
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: AppColors.plum),
+          ),
+        ),
+        ...products.map(
+          (product) => _SuggestionProductTile(
+            product: product,
+            onTap: () => onProductSelected(product),
+          ),
+        ),
+        const Divider(height: 1),
+        TextButton.icon(
+          onPressed: onShowAll,
+          iconAlignment: IconAlignment.end,
+          icon: const Icon(Icons.arrow_forward, size: 18),
+          label: Text('Xem tất cả kết quả cho “$query”'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
+            alignment: Alignment.centerLeft,
+          ),
         ),
       ],
-      onSubmitted: (_) => submit(),
-      backgroundColor: const WidgetStatePropertyAll(AppColors.surface),
-      elevation: const WidgetStatePropertyAll(0),
+    );
+  }
+}
+
+class _SuggestionProductTile extends StatelessWidget {
+  const _SuggestionProductTile({required this.product, required this.onTap});
+
+  final Product product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              child: SizedBox.square(
+                dimension: 52,
+                child: product.image.isEmpty
+                    ? const ColoredBox(
+                        color: AppColors.paleRose,
+                        child: Icon(Icons.spa_outlined),
+                      )
+                    : Image.network(
+                        product.image,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                          color: AppColors.paleRose,
+                          child: Icon(Icons.spa_outlined),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (product.brand.isNotEmpty)
+                    Text(
+                      product.brand.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.mutedInk,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    formatMoney(product.price, product.currency),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.rose,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.mutedInk),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -212,9 +557,10 @@ class _DesktopNavItemState extends State<_DesktopNavItem> {
       child: InkWell(
         onTap: () => context.go(widget.route),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 widget.label,
@@ -223,9 +569,9 @@ class _DesktopNavItemState extends State<_DesktopNavItem> {
                   fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
               AnimatedContainer(
                 duration: AppDurations.feedback,
+                margin: const EdgeInsets.only(top: 4),
                 height: 2,
                 width: active || hovered ? 30 : 0,
                 decoration: const BoxDecoration(

@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/design_tokens.dart';
-import '../../providers/catalog_provider.dart';
+import '../../models/admin_models.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/backend_api.dart';
 import '../../utils/money.dart';
-import '../../widgets/lumi_states.dart';
+import 'admin_components.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -17,143 +21,177 @@ class ProductsPage extends StatefulWidget {
 class _ProductsPageState extends State<ProductsPage> {
   static const pageSize = 20;
   final searchController = TextEditingController();
-  String query = '';
-  String? category;
-  String? brand;
+  AdminProductPage? result;
+  String? status;
+  String? error;
+  bool loading = true;
   int page = 0;
+  Timer? debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => load());
+  }
 
   @override
   void dispose() {
+    debounce?.cancel();
     searchController.dispose();
     super.dispose();
   }
 
+  Future<void> load() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final value = await context.read<BackendApi>().getAdminProducts(
+        accessToken: token,
+        search: searchController.text,
+        status: status,
+        limit: pageSize,
+        offset: page * pageSize,
+      );
+      if (mounted) setState(() => result = value);
+    } catch (exception) {
+      if (mounted) setState(() => error = BackendApi.readableError(exception));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  void searchChanged(String _) {
+    debounce?.cancel();
+    debounce = Timer(const Duration(milliseconds: 400), () {
+      page = 0;
+      load();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final catalog = context.watch<CatalogProvider>();
-    if (catalog.isLoading && catalog.products.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        child: LumiProductGridSkeleton(count: 6),
-      );
-    }
-    if (catalog.errorMessage != null && catalog.products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(catalog.errorMessage!),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => catalog.loadProducts(force: true),
-              child: const Text('Thử lại'),
+    final items = result?.items ?? const <AdminProduct>[];
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        AdminPageHeader(
+          title: 'Sản phẩm',
+          subtitle: 'Quản lý catalog, trạng thái dữ liệu và tồn kho.',
+          actions: [
+            FilledButton.icon(
+              onPressed: () => context.go('/admin/products/new'),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm sản phẩm'),
             ),
           ],
         ),
-      );
-    }
-    final categories =
-        catalog.products.map((item) => item.category).toSet().toList()..sort();
-    final brands = catalog.products.map((item) => item.brand).toSet().toList()
-      ..sort();
-    final filtered = catalog.products.where((product) {
-      final term = query.toLowerCase();
-      return (term.isEmpty ||
-              product.name.toLowerCase().contains(term) ||
-              product.sku.toLowerCase().contains(term)) &&
-          (category == null || product.category == category) &&
-          (brand == null || product.brand == brand);
-    }).toList();
-    final maxPage = filtered.isEmpty ? 0 : (filtered.length - 1) ~/ pageSize;
-    if (page > maxPage) page = maxPage;
-    final start = page * pageSize;
-    final visible = filtered.skip(start).take(pageSize).toList();
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        children: [
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.md,
+        const SizedBox(height: AppSpacing.lg),
+        AdminSectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 300,
-                child: TextField(
-                  controller: searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Tìm tên hoặc SKU…',
-                    prefixIcon: Icon(Icons.search),
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                children: [
+                  SizedBox(
+                    width: 320,
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: searchChanged,
+                      decoration: const InputDecoration(
+                        labelText: 'Tìm sản phẩm',
+                        hintText: 'Tên, SKU hoặc thương hiệu',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                    ),
                   ),
-                  onChanged: (value) => setState(() {
-                    query = value.trim();
-                    page = 0;
-                  }),
-                ),
-              ),
-              SizedBox(
-                width: 210,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: category,
-                  decoration: const InputDecoration(labelText: 'Danh mục'),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả')),
-                    ...categories.map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
+                  SizedBox(
+                    width: 210,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: status,
+                      decoration: const InputDecoration(
+                        labelText: 'Trạng thái',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Tất cả')),
+                        DropdownMenuItem(
+                          value: 'ACTIVE',
+                          child: Text('Active'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'INACTIVE',
+                          child: Text('Inactive'),
+                        ),
+                        DropdownMenuItem(value: 'DRAFT', child: Text('Draft')),
+                        DropdownMenuItem(
+                          value: 'ARCHIVED',
+                          child: Text('Archived'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          status = value;
+                          page = 0;
+                        });
+                        load();
+                      },
                     ),
-                  ],
-                  onChanged: (value) => setState(() {
-                    category = value;
-                    page = 0;
-                  }),
-                ),
+                  ),
+                ],
               ),
-              SizedBox(
-                width: 210,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: brand,
-                  decoration: const InputDecoration(labelText: 'Thương hiệu'),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả')),
-                    ...brands.map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
-                    ),
-                  ],
-                  onChanged: (value) => setState(() {
-                    brand = value;
-                    page = 0;
-                  }),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: Card(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SingleChildScrollView(
+              const SizedBox(height: AppSpacing.lg),
+              if (loading && result == null)
+                const AdminLoading(rows: 7)
+              else if (error != null)
+                AdminMessageState(
+                  icon: Icons.cloud_off_outlined,
+                  title: 'Không thể tải sản phẩm',
+                  message: error!,
+                  actionLabel: 'Thử lại',
+                  onAction: load,
+                )
+              else if (items.isEmpty)
+                AdminMessageState(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Không tìm thấy sản phẩm phù hợp',
+                  message: 'Hãy thay đổi từ khóa hoặc bộ lọc trạng thái.',
+                  actionLabel: 'Xóa bộ lọc',
+                  onAction: () {
+                    searchController.clear();
+                    setState(() => status = null);
+                    load();
+                  },
+                )
+              else ...[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   child: DataTable(
+                    headingRowColor: const WidgetStatePropertyAll(
+                      AdminColors.softLavender,
+                    ),
                     columns: const [
-                      DataColumn(label: Text('ID')),
                       DataColumn(label: Text('Sản phẩm')),
                       DataColumn(label: Text('SKU')),
-                      DataColumn(label: Text('Thương hiệu')),
+                      DataColumn(label: Text('Brand')),
                       DataColumn(label: Text('Danh mục')),
                       DataColumn(label: Text('Giá')),
                       DataColumn(label: Text('Tồn kho')),
+                      DataColumn(label: Text('Trạng thái')),
                       DataColumn(label: Text('AI-ready')),
-                      DataColumn(label: Text('Thao tác')),
+                      DataColumn(label: Text('')),
                     ],
-                    rows: visible
+                    rows: items
                         .map(
                           (product) => DataRow(
                             cells: [
-                              DataCell(Text('${product.id}')),
                               DataCell(
                                 SizedBox(
-                                  width: 260,
+                                  width: 230,
                                   child: Text(
                                     product.name,
                                     maxLines: 2,
@@ -161,9 +199,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                   ),
                                 ),
                               ),
-                              DataCell(
-                                Text(product.sku.isEmpty ? '—' : product.sku),
-                              ),
+                              DataCell(Text(product.sku)),
                               DataCell(Text(product.brand)),
                               DataCell(Text(product.category)),
                               DataCell(
@@ -171,26 +207,41 @@ class _ProductsPageState extends State<ProductsPage> {
                                   formatMoney(product.price, product.currency),
                                 ),
                               ),
-                              DataCell(Text(product.stock?.toString() ?? '—')),
+                              DataCell(Text('${product.stock ?? 0}')),
+                              DataCell(AdminStatusBadge(product.status)),
                               DataCell(
                                 Icon(
-                                  product.skinConcerns.isNotEmpty &&
-                                          product.careGoals.isNotEmpty
+                                  product.aiReady
                                       ? Icons.check_circle
                                       : Icons.remove_circle_outline,
-                                  color:
-                                      product.skinConcerns.isNotEmpty &&
-                                          product.careGoals.isNotEmpty
-                                      ? AppColors.success
-                                      : AppColors.mutedInk,
+                                  color: product.aiReady
+                                      ? AdminColors.success
+                                      : AdminColors.textSecondary,
                                 ),
                               ),
                               DataCell(
-                                IconButton(
-                                  tooltip: 'Xem sản phẩm',
-                                  onPressed: () =>
-                                      context.go('/product/${product.id}'),
-                                  icon: const Icon(Icons.visibility_outlined),
+                                PopupMenuButton<String>(
+                                  tooltip: 'Thao tác',
+                                  onSelected: (value) {
+                                    if (value == 'view')
+                                      context.go(
+                                        '/admin/products/${product.id}',
+                                      );
+                                    if (value == 'edit')
+                                      context.go(
+                                        '/admin/products/${product.id}/edit',
+                                      );
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'view',
+                                      child: Text('Xem chi tiết'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Chỉnh sửa'),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -199,33 +250,39 @@ class _ProductsPageState extends State<ProductsPage> {
                         .toList(),
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                '${filtered.length} sản phẩm · Trang ${page + 1}/${maxPage + 1}',
-              ),
-              const SizedBox(width: AppSpacing.md),
-              IconButton(
-                tooltip: 'Trang trước',
-                onPressed: page == 0 ? null : () => setState(() => page--),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              IconButton(
-                tooltip: 'Trang sau',
-                onPressed: page >= maxPage
-                    ? null
-                    : () => setState(() => page++),
-                icon: const Icon(Icons.chevron_right),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Text('${result!.total} sản phẩm'),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Trang trước',
+                      onPressed: page == 0
+                          ? null
+                          : () {
+                              setState(() => page--);
+                              load();
+                            },
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Text('Trang ${page + 1}'),
+                    IconButton(
+                      tooltip: 'Trang sau',
+                      onPressed: (page + 1) * pageSize >= result!.total
+                          ? null
+                          : () {
+                              setState(() => page++);
+                              load();
+                            },
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

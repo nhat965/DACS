@@ -18,9 +18,22 @@ import '../screens/customer/register_page.dart';
 import '../screens/customer/forgot_password_page.dart';
 import '../screens/customer/profile_page.dart';
 import '../screens/customer/onboarding_page.dart';
+import '../screens/customer/order_lookup_page.dart';
 import '../screens/customer/personalized_page.dart';
 
 import '../screens/admin/admin_layout.dart';
+import '../screens/admin/admin_placeholder_page.dart';
+import '../screens/admin/catalog_insights_pages.dart';
+import '../screens/admin/dashboard_page.dart';
+import '../screens/admin/inventory_page.dart';
+import '../screens/admin/order_detail_page.dart';
+import '../screens/admin/orders_page.dart';
+import '../screens/admin/product_pages.dart';
+import '../screens/admin/products_page.dart';
+import '../screens/admin/users_page.dart';
+
+Widget _adminShell(GoRouterState state, String title, Widget child) =>
+    AdminLayout(currentPath: state.uri.path, title: title, child: child);
 
 GoRoute _appRoute({
   required String path,
@@ -68,6 +81,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
         path == '/checkout' ||
         path == '/profile' ||
         path == '/onboarding' ||
+        path == '/order-lookup' ||
         path == '/recommendations';
     final needsAdmin = path.startsWith('/admin');
 
@@ -164,13 +178,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
     ),
     _appRoute(
       path: '/order-lookup',
-      builder: (_, _) => const CatalogStatusPage(
-        title: 'Tra cứu đơn hàng',
-        message: 'Đăng nhập để xem và theo dõi các đơn hàng của bạn.',
-        icon: Icons.receipt_long_outlined,
-        actionLabel: 'Đăng nhập',
-        actionRoute: '/login?redirect=%2Fprofile',
-      ),
+      builder: (_, _) => const OrderLookupPage(),
     ),
     _appRoute(
       path: '/social/:network',
@@ -246,6 +254,150 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
     // =========================
     // ADMIN
     // =========================
-    _appRoute(path: '/admin', builder: (context, state) => const AdminLayout()),
+    GoRoute(path: '/admin', redirect: (_, _) => '/admin/dashboard'),
+    _appRoute(
+      path: '/admin/dashboard',
+      builder: (_, state) =>
+          _adminShell(state, 'Dashboard', const DashboardPage()),
+    ),
+    _appRoute(
+      path: '/admin/reports',
+      builder: (_, state) => _adminShell(
+        state,
+        'Báo cáo',
+        const AdminPlaceholderPage(
+          title: 'Báo cáo',
+          message: 'Báo cáo doanh thu sẽ khả dụng khi có dữ liệu theo thời gian đủ tin cậy.',
+          icon: Icons.query_stats_outlined,
+        ),
+      ),
+    ),
+    _appRoute(
+      path: '/admin/orders',
+      builder: (_, state) => _adminShell(state, 'Đơn hàng', const OrdersPage()),
+    ),
+    _appRoute(
+      path: '/admin/orders/:id',
+      builder: (_, state) {
+        final id = int.tryParse(state.pathParameters['id'] ?? '');
+        return _adminShell(
+          state,
+          'Chi tiết đơn hàng',
+          id == null
+              ? const AdminPlaceholderPage(
+                  title: 'Đơn hàng không hợp lệ',
+                  message: 'Mã đơn hàng không đúng định dạng.',
+                  icon: Icons.error_outline,
+                )
+              : OrderDetailPage(orderId: id),
+        );
+      },
+    ),
+    _appRoute(
+      path: '/admin/products',
+      builder: (_, state) =>
+          _adminShell(state, 'Sản phẩm', const ProductsPage()),
+    ),
+    _appRoute(
+      path: '/admin/products/new',
+      builder: (_, state) =>
+          _adminShell(state, 'Thêm sản phẩm', const ProductFormPage()),
+    ),
+    _appRoute(
+      path: '/admin/products/:id/edit',
+      builder: (_, state) {
+        final id = int.tryParse(state.pathParameters['id'] ?? '');
+        return _adminShell(
+          state,
+          'Chỉnh sửa sản phẩm',
+          id == null
+              ? const AdminPlaceholderPage(
+                  title: 'Sản phẩm không hợp lệ',
+                  message: 'Mã sản phẩm không đúng định dạng.',
+                  icon: Icons.error_outline,
+                )
+              : ProductFormPage(productId: id),
+        );
+      },
+    ),
+    _appRoute(
+      path: '/admin/products/:id',
+      builder: (_, state) {
+        final id = int.tryParse(state.pathParameters['id'] ?? '');
+        return _adminShell(
+          state,
+          'Chi tiết sản phẩm',
+          id == null
+              ? const AdminPlaceholderPage(
+                  title: 'Sản phẩm không hợp lệ',
+                  message: 'Mã sản phẩm không đúng định dạng.',
+                  icon: Icons.error_outline,
+                )
+              : ProductAdminDetailPage(productId: id),
+        );
+      },
+    ),
+    _appRoute(
+      path: '/admin/categories',
+      builder: (_, state) =>
+          _adminShell(state, 'Danh mục', const AdminCategoriesPage()),
+    ),
+    _appRoute(
+      path: '/admin/brands',
+      builder: (_, state) =>
+          _adminShell(state, 'Thương hiệu', const AdminBrandsPage()),
+    ),
+    _appRoute(
+      path: '/admin/inventory',
+      builder: (_, state) =>
+          _adminShell(state, 'Kho hàng', const InventoryPage()),
+    ),
+    _appRoute(
+      path: '/admin/users',
+      builder: (_, state) =>
+          _adminShell(state, 'Người dùng', const UsersPage()),
+    ),
+    _appRoute(
+      path: '/admin/users/:id',
+      builder: (_, state) {
+        final id = int.tryParse(state.pathParameters['id'] ?? '');
+        return _adminShell(
+          state,
+          'Chi tiết người dùng',
+          id == null
+              ? const AdminPlaceholderPage(
+                  title: 'Người dùng không hợp lệ',
+                  message: 'Mã người dùng không đúng định dạng.',
+                  icon: Icons.error_outline,
+                )
+              : UserDetailPage(userId: id),
+        );
+      },
+    ),
+    _appRoute(
+      path: '/admin/behavior',
+      builder: (_, state) => _adminShell(
+        state,
+        'Hành vi',
+        const AdminPlaceholderPage(
+          title: 'Hành vi người dùng',
+          message: 'Dữ liệu behavior đang được thu thập; màn hình phân tích sẽ chỉ bật khi đủ dữ liệu.',
+          icon: Icons.insights_outlined,
+        ),
+      ),
+    ),
+    _appRoute(
+      path: '/admin/recommendation-analytics',
+      builder: (_, state) => _adminShell(
+        state,
+        'Recommendation Analytics',
+        const AdminMetricPage(kind: AdminMetricKind.recommendations),
+      ),
+    ),
+    _appRoute(
+      path: '/admin/data-quality',
+      builder: (_, state) =>
+          _adminShell(state, 'Data Quality', const DataQualityPage()),
+    ),
   ],
 );

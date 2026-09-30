@@ -5,146 +5,111 @@ import 'package:provider/provider.dart';
 import '../../app/design_tokens.dart';
 import '../../providers/auth_provider.dart';
 
-import 'dashboard_page.dart';
-import 'products_page.dart';
-import 'orders_page.dart';
-import 'catalog_insights_pages.dart';
+class AdminLayout extends StatelessWidget {
+  const AdminLayout({
+    super.key,
+    required this.currentPath,
+    required this.child,
+    required this.title,
+  });
 
-class AdminLayout extends StatefulWidget {
-  const AdminLayout({super.key});
+  final String currentPath;
+  final Widget child;
+  final String title;
 
-  @override
-  State<AdminLayout> createState() => _AdminLayoutState();
-}
-
-class _AdminLayoutState extends State<AdminLayout> {
-  int selectedIndex = 0;
-
-  final List<String> menuItems = [
-    'Dashboard',
-    'Sản phẩm',
-    'Danh mục',
-    'Thương hiệu',
-    'Đơn hàng',
-    'Người dùng',
-    'Data Quality',
-    'Recommendation Analytics',
+  static const groups = <_AdminNavGroup>[
+    _AdminNavGroup('TỔNG QUAN', [
+      _AdminNavItem('Dashboard', Icons.dashboard_outlined, '/admin/dashboard'),
+      _AdminNavItem('Báo cáo', Icons.query_stats_outlined, '/admin/reports'),
+    ]),
+    _AdminNavGroup('BÁN HÀNG', [
+      _AdminNavItem('Đơn hàng', Icons.shopping_bag_outlined, '/admin/orders'),
+    ]),
+    _AdminNavGroup('SẢN PHẨM', [
+      _AdminNavItem('Sản phẩm', Icons.inventory_2_outlined, '/admin/products'),
+      _AdminNavItem('Danh mục', Icons.category_outlined, '/admin/categories'),
+      _AdminNavItem('Thương hiệu', Icons.storefront_outlined, '/admin/brands'),
+      _AdminNavItem('Kho hàng', Icons.warehouse_outlined, '/admin/inventory'),
+    ]),
+    _AdminNavGroup('KHÁCH HÀNG', [
+      _AdminNavItem('Người dùng', Icons.people_outline, '/admin/users'),
+      _AdminNavItem('Hành vi', Icons.insights_outlined, '/admin/behavior'),
+    ]),
+    _AdminNavGroup('AI & DỮ LIỆU', [
+      _AdminNavItem(
+        'Recommendation Analytics',
+        Icons.auto_awesome_outlined,
+        '/admin/recommendation-analytics',
+      ),
+      _AdminNavItem(
+        'Data Quality',
+        Icons.fact_check_outlined,
+        '/admin/data-quality',
+      ),
+    ]),
   ];
 
-  final List<IconData> menuIcons = [
-    Icons.dashboard_outlined,
-    Icons.inventory_2_outlined,
-    Icons.category_outlined,
-    Icons.storefront_outlined,
-    Icons.shopping_bag_outlined,
-    Icons.people_outline,
-    Icons.fact_check_outlined,
-    Icons.auto_awesome_outlined,
-  ];
-
-  Widget _buildPage() {
-    switch (selectedIndex) {
-      case 0:
-        return const DashboardPage();
-      case 1:
-        return const ProductsPage();
-      case 2:
-        return const AdminCategoriesPage();
-      case 3:
-        return const AdminBrandsPage();
-      case 4:
-        return const OrdersPage();
-      case 5:
-        return const AdminMetricPage(kind: AdminMetricKind.users);
-      case 6:
-        return const DataQualityPage();
-      case 7:
-        return const AdminMetricPage(kind: AdminMetricKind.recommendations);
-      default:
-        return const DashboardPage();
-    }
-  }
-
-  void _logout() {
+  void _logout(BuildContext context) {
     context.read<AuthProvider>().logout();
     context.go('/');
   }
 
   @override
   Widget build(BuildContext context) {
-    final userName =
-        context.watch<AuthProvider>().user?.fullName ?? 'Quản trị viên';
+    final sessionKey = context.watch<AuthProvider>().accessToken;
+    final sessionAwareChild = KeyedSubtree(
+      key: ValueKey(sessionKey),
+      child: child,
+    );
     return ColoredBox(
-      color: const Color(0xFFF7F4F7),
+      color: AdminColors.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final desktop = constraints.maxWidth >= AppBreakpoints.navigation;
-          final content = Column(
-            children: [
-              Container(
-                height: 72,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: AppShadows.header,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      menuItems[selectedIndex],
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    const CircleAvatar(
-                      backgroundColor: AppColors.lavenderMist,
-                      child: Icon(Icons.person_outline, color: AppColors.plum),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(userName, overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(child: _buildPage()),
-            ],
-          );
+          final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
           if (desktop) {
             return Row(
               children: [
-                _AdminSidebar(
-                  selectedIndex: selectedIndex,
-                  labels: menuItems,
-                  icons: menuIcons,
-                  onSelected: (value) => setState(() => selectedIndex = value),
-                  onLogout: _logout,
+                _AdminNavigation(
+                  currentPath: currentPath,
+                  onLogout: () => _logout(context),
                 ),
-                Expanded(child: content),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _AdminTopbar(
+                        title: title,
+                        onLogout: () => _logout(context),
+                      ),
+                      Expanded(child: sessionAwareChild),
+                    ],
+                  ),
+                ),
               ],
             );
           }
           return Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              title: const Text('LUMI ADMIN'),
-              backgroundColor: AppColors.deepPlum,
-              foregroundColor: AppColors.surface,
-            ),
+            backgroundColor: AdminColors.background,
             drawer: Drawer(
-              child: SafeArea(
-                child: _AdminDrawer(
-                  selectedIndex: selectedIndex,
-                  labels: menuItems,
-                  icons: menuIcons,
-                  onSelected: (value) {
-                    setState(() => selectedIndex = value);
-                    Navigator.of(context).pop();
-                  },
-                  onLogout: _logout,
-                ),
+              width: 270,
+              backgroundColor: AdminColors.deepPlum,
+              child: _AdminNavigation(
+                currentPath: currentPath,
+                onNavigate: () => Navigator.of(context).pop(),
+                onLogout: () => _logout(context),
               ),
             ),
-            body: content,
+            body: Column(
+              children: [
+                Builder(
+                  builder: (context) => _AdminTopbar(
+                    title: title,
+                    onMenu: () => Scaffold.of(context).openDrawer(),
+                    onLogout: () => _logout(context),
+                  ),
+                ),
+                Expanded(child: sessionAwareChild),
+              ],
+            ),
           );
         },
       ),
@@ -152,112 +117,261 @@ class _AdminLayoutState extends State<AdminLayout> {
   }
 }
 
-class _AdminSidebar extends StatelessWidget {
-  const _AdminSidebar({
-    required this.selectedIndex,
-    required this.labels,
-    required this.icons,
-    required this.onSelected,
+class _AdminTopbar extends StatelessWidget {
+  const _AdminTopbar({
+    required this.title,
     required this.onLogout,
+    this.onMenu,
   });
 
-  final int selectedIndex;
-  final List<String> labels;
-  final List<IconData> icons;
-  final ValueChanged<int> onSelected;
+  final String title;
   final VoidCallback onLogout;
+  final VoidCallback? onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      decoration: const BoxDecoration(
+        color: AdminColors.card,
+        border: Border(bottom: BorderSide(color: AdminColors.border)),
+      ),
+      child: Row(
+        children: [
+          if (onMenu != null) ...[
+            IconButton(
+              tooltip: 'Mở menu quản trị',
+              onPressed: onMenu,
+              icon: const Icon(Icons.menu),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(color: AdminColors.textPrimary),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Thông báo',
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Chưa có thông báo mới.')),
+            ),
+            icon: const Icon(Icons.notifications_none_outlined),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          PopupMenuButton<String>(
+            tooltip: 'Tài khoản quản trị',
+            onSelected: (value) {
+              if (value == 'logout') onLogout();
+              if (value == 'profile') context.go('/profile');
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'profile', child: Text('Hồ sơ')),
+              PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+            ],
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AdminColors.softLavender,
+                  child: Icon(
+                    Icons.person_outline,
+                    size: 20,
+                    color: AdminColors.deepPlum,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    user?.fullName ?? 'Quản trị viên',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminNavigation extends StatelessWidget {
+  const _AdminNavigation({
+    required this.currentPath,
+    required this.onLogout,
+    this.onNavigate,
+  });
+
+  final String currentPath;
+  final VoidCallback onLogout;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 252,
-      color: AppColors.deepPlum,
+      width: 260,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AdminColors.deepPlum, AdminColors.sidebarPlum],
+        ),
+      ),
       child: SafeArea(
-        child: _AdminDrawer(
-          selectedIndex: selectedIndex,
-          labels: labels,
-          icons: icons,
-          onSelected: onSelected,
-          onLogout: onLogout,
-          dark: true,
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(22, 24, 22, 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'LUMI BEAUTY',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Admin Console',
+                      style: TextStyle(color: AdminColors.lavender),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                children: AdminLayout.groups
+                    .expand(
+                      (group) => [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
+                          child: Text(
+                            group.label,
+                            style: const TextStyle(
+                              color: AdminColors.lavender,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                        ...group.items.map(
+                          (item) => _AdminNavTile(
+                            item: item,
+                            selected:
+                                currentPath == item.path ||
+                                (item.path != '/admin/dashboard' &&
+                                    currentPath.startsWith('${item.path}/')),
+                            onTap: () {
+                              context.go(item.path);
+                              onNavigate?.call();
+                            },
+                          ),
+                        ),
+                      ],
+                    )
+                    .toList(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: _AdminNavTile(
+                item: const _AdminNavItem('Đăng xuất', Icons.logout, ''),
+                selected: false,
+                onTap: onLogout,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer({
-    required this.selectedIndex,
-    required this.labels,
-    required this.icons,
-    required this.onSelected,
-    required this.onLogout,
-    this.dark = false,
+class _AdminNavTile extends StatefulWidget {
+  const _AdminNavTile({
+    required this.item,
+    required this.selected,
+    required this.onTap,
   });
+  final _AdminNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
 
-  final int selectedIndex;
-  final List<String> labels;
-  final List<IconData> icons;
-  final ValueChanged<int> onSelected;
-  final VoidCallback onLogout;
-  final bool dark;
+  @override
+  State<_AdminNavTile> createState() => _AdminNavTileState();
+}
+
+class _AdminNavTileState extends State<_AdminNavTile> {
+  bool hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = dark ? AppColors.surface : AppColors.ink;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            children: [
-              Text(
-                'LUMI BEAUTY',
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(color: foreground, letterSpacing: 1.2),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'ADMIN',
-                style: TextStyle(color: foreground.withValues(alpha: 0.7)),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => hovered = true),
+        onExit: (_) => setState(() => hovered = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? Colors.white.withValues(alpha: 0.14)
+                : hovered
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.control),
           ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            itemCount: labels.length,
-            itemBuilder: (context, index) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: ListTile(
-                selected: selectedIndex == index,
-                selectedTileColor: AppColors.surface,
-                selectedColor: AppColors.plum,
-                textColor: foreground,
-                iconColor: foreground,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                ),
-                leading: Icon(icons[index]),
-                title: Text(labels[index]),
-                onTap: () => onSelected(index),
+          child: ListTile(
+            dense: true,
+            minLeadingWidth: 24,
+            leading: AnimatedScale(
+              scale: widget.selected || hovered ? 1.04 : 1,
+              duration: const Duration(milliseconds: 170),
+              child: Icon(widget.item.icon, color: Colors.white, size: 21),
+            ),
+            title: Text(
+              widget.item.label,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
+            onTap: widget.onTap,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: ListTile(
-            textColor: foreground,
-            iconColor: foreground,
-            leading: const Icon(Icons.logout),
-            title: const Text('Đăng xuất'),
-            onTap: onLogout,
-          ),
-        ),
-      ],
+      ),
     );
   }
+}
+
+class _AdminNavGroup {
+  const _AdminNavGroup(this.label, this.items);
+  final String label;
+  final List<_AdminNavItem> items;
+}
+
+class _AdminNavItem {
+  const _AdminNavItem(this.label, this.icon, this.path);
+  final String label;
+  final IconData icon;
+  final String path;
 }

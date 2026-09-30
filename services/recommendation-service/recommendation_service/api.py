@@ -59,6 +59,22 @@ class EventType(str, Enum):
     CHATBOT_MESSAGE = "chatbot_message"
 
 
+class ProductStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    DRAFT = "DRAFT"
+    ARCHIVED = "ARCHIVED"
+
+
+class OrderStatus(str, Enum):
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    PROCESSING = "PROCESSING"
+    SHIPPING = "SHIPPING"
+    COMPLETED = "COMPLETED"
+    CANCELED = "CANCELED"
+
+
 PRODUCT_REQUIRED_EVENTS = {
     EventType.VIEW_PRODUCT,
     EventType.CLICK_RECOMMENDATION,
@@ -200,6 +216,19 @@ class LoginPayload(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class ProductReviewPayload(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(min_length=3, max_length=2000)
+
+    @field_validator("comment")
+    @classmethod
+    def normalize_comment(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) < 3:
+            raise ValueError("comment must contain at least 3 non-space characters")
+        return normalized
+
+
 class OrderItemPayload(BaseModel):
     productId: PositiveProductId
     quantity: int = Field(ge=1, le=99)
@@ -223,6 +252,56 @@ class PreferencesPayload(RecommendationContextPayload):
         if self.budgetCurrency is None:
             self.budgetCurrency = self.currency
         return self
+
+
+class AdminProductPayload(BaseModel):
+    sku: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=2, max_length=255)
+    brand: str = Field(min_length=1, max_length=120)
+    category: str = Field(min_length=1, max_length=120)
+    price: float = Field(gt=0)
+    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
+    stockQuantity: int = Field(default=0, ge=0)
+    status: ProductStatus = ProductStatus.DRAFT
+    aiReady: bool = False
+    description: str = Field(default="", max_length=10000)
+    benefits: str = Field(default="", max_length=5000)
+    inciIngredients: str = Field(default="", max_length=20000)
+    keyIngredients: str = Field(default="", max_length=5000)
+    skinTypes: list[str] = Field(default_factory=list)
+    skinConcerns: list[str] = Field(default_factory=list)
+    careGoals: list[str] = Field(default_factory=list)
+    texture: str = Field(default="", max_length=80)
+    usageInstruction: str = Field(default="", max_length=5000)
+    warnings: str = Field(default="", max_length=5000)
+    imageUrl: str = Field(default="", max_length=500)
+    sourceUrl: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def validate_ai_readiness(self):
+        if self.aiReady and not (
+            self.description.strip()
+            and self.skinTypes
+            and self.skinConcerns
+            and self.careGoals
+            and self.imageUrl.strip()
+        ):
+            raise ValueError(
+                "AI-ready products require description, skin types, concerns, care goals and image"
+            )
+        return self
+
+
+class AdminProductStatusPayload(BaseModel):
+    status: ProductStatus
+
+
+class AdminProductStockPayload(BaseModel):
+    stockQuantity: int = Field(ge=0)
+
+
+class AdminOrderStatusPayload(BaseModel):
+    status: OrderStatus
 
 
 def create_app(
@@ -251,6 +330,13 @@ def create_app(
     if isinstance(commerce_repository, MySQLCommerceRepository):
         _bootstrap_admin(commerce_repository)
     engine = RecommendationEngine(catalog)
+
+    def refresh_runtime_catalog() -> None:
+        nonlocal catalog, engine
+        if database is None or catalog_source != "mysql":
+            return
+        catalog = CatalogRepository(database.load_products())
+        engine = RecommendationEngine(catalog)
 
     app = FastAPI(
         title="Cosmetic Recommendation Service",
@@ -433,6 +519,154 @@ def create_app(
     def admin_metrics(_: UserRecord = Depends(require_admin)) -> dict[str, int]:
         return commerce_repository.get_admin_metrics()
 
+    @app.get("/admin/dashboard")
+    def admin_dashboard(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
+        return commerce_repository.get_admin_dashboard()
+
+    @app.get("/admin/data-quality")
+    def admin_data_quality(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
+        return commerce_repository.get_admin_data_quality()
+
+    @app.get("/admin/products")
+    def admin_products(
+        search: str | None = Query(default=None, max_length=120),
+        status: ProductStatus | None = Query(default=None),
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        return commerce_repository.list_admin_products(
+            search=search,
+            status=status.value if status else None,
+            limit=limit,
+            offset=offset,
+        )
+
+    @app.post("/admin/products", status_code=201)
+    def create_admin_product(
+        payload: AdminProductPayload,
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        try:
+            product = commerce_repository.save_admin_product(
+                payload=payload.model_dump(mode="json")
+            )
+        except CommerceValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        refresh_runtime_catalog()
+        return product
+
+    @app.get("/admin/products/{productId}")
+    def get_admin_product(
+        productId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        product = commerce_repository.get_admin_product(productId)
+        if product is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return product
+
+    @app.put("/admin/products/{productId}")
+    def update_admin_product(
+        payload: AdminProductPayload,
+        productId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        try:
+            product = commerce_repository.save_admin_product(
+                payload=payload.model_dump(mode="json"), product_id=productId
+            )
+        except CommerceValidationError as exc:
+            status_code = 404 if str(exc) == "Product not found" else 422
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        refresh_runtime_catalog()
+        return product
+
+    @app.patch("/admin/products/{productId}/status")
+    def update_admin_product_status(
+        payload: AdminProductStatusPayload,
+        productId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        try:
+            product = commerce_repository.update_product_status(
+                productId, payload.status.value
+            )
+        except CommerceValidationError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        refresh_runtime_catalog()
+        return product
+
+    @app.patch("/admin/products/{productId}/stock")
+    def update_admin_product_stock(
+        payload: AdminProductStockPayload,
+        productId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        try:
+            product = commerce_repository.update_product_stock(
+                productId, payload.stockQuantity
+            )
+        except CommerceValidationError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        refresh_runtime_catalog()
+        return product
+
+    @app.get("/admin/inventory")
+    def admin_inventory(
+        state: str | None = Query(default=None, pattern=r"^(LOW|OUT|IN)$"),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        result = commerce_repository.list_admin_products(limit=100, offset=0)
+        items = result["items"]
+        if state == "LOW":
+            items = [item for item in items if 0 < item["stockQuantity"] <= 10]
+        elif state == "OUT":
+            items = [item for item in items if item["stockQuantity"] == 0]
+        elif state == "IN":
+            items = [item for item in items if item["stockQuantity"] > 10]
+        return {"items": items, "total": len(items), "lowStockThreshold": 10}
+
+    @app.get("/admin/orders/{orderId}")
+    def get_admin_order(
+        orderId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        order = commerce_repository.get_order(order_id=orderId)
+        if order is None:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return order
+
+    @app.patch("/admin/orders/{orderId}/status")
+    def update_admin_order_status(
+        payload: AdminOrderStatusPayload,
+        orderId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        try:
+            return commerce_repository.update_order_status(orderId, payload.status.value)
+        except CommerceValidationError as exc:
+            status_code = 404 if str(exc) == "Order not found" else 409
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+    @app.get("/admin/users")
+    def admin_users(
+        search: str | None = Query(default=None, max_length=120),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        items = commerce_repository.list_admin_users(search=search)
+        return {"items": items, "total": len(items)}
+
+    @app.get("/admin/users/{userId}")
+    def get_admin_user(
+        userId: int = ApiPath(gt=0),
+        _: UserRecord = Depends(require_admin),
+    ) -> dict[str, Any]:
+        user = commerce_repository.get_admin_user(userId)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+
     @app.get("/products")
     def list_products(
         search: str | None = Query(default=None, max_length=120),
@@ -528,6 +762,53 @@ def create_app(
         if product is None:
             raise HTTPException(status_code=404, detail="Product not found")
         return _product_to_dict(product)
+
+    @app.get("/products/{productId}/reviews")
+    def list_product_reviews(
+        productId: int = ApiPath(gt=0),
+        limit: int = Query(default=20, ge=1, le=50),
+        offset: int = Query(default=0, ge=0),
+        user: UserRecord | None = Depends(optional_user),
+    ) -> dict[str, Any]:
+        if commerce_repository is None:
+            return {
+                "items": [],
+                "total": 0,
+                "averageRating": None,
+                "limit": limit,
+                "offset": offset,
+            }
+        try:
+            return commerce_repository.list_product_reviews(
+                product_id=productId,
+                viewer_user_id=user.id if user else None,
+                limit=limit,
+                offset=offset,
+            )
+        except CommerceValidationError as exc:
+            status_code = 404 if str(exc) == "Product not found" else 422
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+    @app.post("/products/{productId}/reviews", status_code=201)
+    def save_product_review(
+        payload: ProductReviewPayload,
+        productId: int = ApiPath(gt=0),
+        user: UserRecord = Depends(require_user),
+    ) -> dict[str, Any]:
+        if user.role != "CUSTOMER":
+            raise HTTPException(status_code=403, detail="Customer account is required")
+        try:
+            review = commerce_repository.save_product_review(
+                user_id=user.id,
+                product_id=productId,
+                rating=payload.rating,
+                comment=payload.comment,
+            )
+        except CommerceValidationError as exc:
+            status_code = 404 if str(exc) == "Product not found" else 422
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        _track_product_review(database, user.id, productId, payload.rating)
+        return review
 
     @app.post("/behavior-events", status_code=202)
     def track_behavior_event(
@@ -798,6 +1079,30 @@ def _track_placed_order(database: Any, user_id: int, order: dict[str, Any]) -> N
                 item.get("productId"),
                 type(exc).__name__,
             )
+
+
+def _track_product_review(
+    database: Any, user_id: int, product_id: int, rating: int
+) -> None:
+    if database is None or not hasattr(database, "save_behavior_event"):
+        return
+    try:
+        database.save_behavior_event(
+            user_id=user_id,
+            session_id=None,
+            event=BehaviorEvent(
+                event_type=EventType.REVIEW_PRODUCT.value,
+                product_id=product_id,
+                event_value=float(rating),
+                metadata={"source": "product_detail"},
+            ),
+        )
+    except Exception as exc:
+        logger.warning(
+            "review_behavior_tracking_failed product_id=%s error_type=%s",
+            product_id,
+            type(exc).__name__,
+        )
 
 
 def _context_to_dict(context: RecommendationContext) -> dict[str, Any]:

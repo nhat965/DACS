@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/design_tokens.dart';
-import '../../models/product.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../services/backend_api.dart';
@@ -83,66 +82,96 @@ class _CountList extends StatelessWidget {
   }
 }
 
-class DataQualityPage extends StatelessWidget {
+class DataQualityPage extends StatefulWidget {
   const DataQualityPage({super.key});
 
   @override
+  State<DataQualityPage> createState() => _DataQualityPageState();
+}
+
+class _DataQualityPageState extends State<DataQualityPage> {
+  Map<String, int>? metrics;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => load());
+  }
+
+  Future<void> load() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    setState(() => error = null);
+    try {
+      final value = await context.read<BackendApi>().getAdminDataQuality(token);
+      if (mounted) setState(() => metrics = value);
+    } catch (exception) {
+      if (mounted) setState(() => error = BackendApi.readableError(exception));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final products = context.watch<CatalogProvider>().products;
-    final total = products.length;
-    int covered(bool Function(Product product) test) =>
-        products.where(test).length;
-    String rate(int count) =>
-        total == 0 ? '—' : '${(count * 100 / total).toStringAsFixed(1)}%';
-    final metrics = <String, String>{
-      'Tổng sản phẩm': '$total',
-      'INCI coverage': rate(covered((p) => p.inciIngredients.isNotEmpty)),
-      'Skin type coverage': rate(covered((p) => p.skinTypes.isNotEmpty)),
-      'Concern coverage': rate(covered((p) => p.skinConcerns.isNotEmpty)),
-      'Care goal coverage': rate(covered((p) => p.careGoals.isNotEmpty)),
-      'Image coverage': rate(covered((p) => p.image.isNotEmpty)),
-      'Price coverage': rate(covered((p) => p.price > 0)),
+    final total = metrics?['totalProducts'] ?? 0;
+    String rate(String key) => total == 0
+        ? '—'
+        : '${((metrics?[key] ?? 0) * 100 / total).toStringAsFixed(1)}%';
+    final values = <String, String>{
+      'Tổng sản phẩm': metrics == null ? '—' : '$total',
+      'AI-ready': rate('aiReadyProducts'),
+      'INCI coverage': rate('inciComplete'),
+      'Skin type coverage': rate('skinTypeComplete'),
+      'Concern coverage': rate('concernComplete'),
+      'Care goal coverage': rate('careGoalComplete'),
+      'Image coverage': rate('imageComplete'),
+      'Price coverage': rate('priceComplete'),
     };
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         Text('Data Quality', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: AppSpacing.lg),
-        LayoutBuilder(
-          builder: (context, constraints) => GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: constraints.maxWidth >= 900
-                ? 4
-                : constraints.maxWidth >= 520
-                ? 2
-                : 1,
-            childAspectRatio: 2.2,
-            crossAxisSpacing: AppSpacing.md,
-            mainAxisSpacing: AppSpacing.md,
-            children: metrics.entries
-                .map(
-                  (entry) => Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(entry.key),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            entry.value,
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                        ],
+        if (error != null)
+          _AdminEmpty(error!)
+        else if (metrics == null)
+          const LinearProgressIndicator()
+        else
+          LayoutBuilder(
+            builder: (context, constraints) => GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: constraints.maxWidth >= 900
+                  ? 4
+                  : constraints.maxWidth >= 520
+                  ? 2
+                  : 1,
+              childAspectRatio: 2.2,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.md,
+              children: values.entries
+                  .map(
+                    (entry) => Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(entry.key),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              entry.value,
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList(),
+            ),
           ),
-        ),
       ],
     );
   }
