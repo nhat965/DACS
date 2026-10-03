@@ -27,6 +27,7 @@ class Product:
     stock_quantity: int | None = None
     usage_instruction: str = ""
     warnings: str = ""
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)

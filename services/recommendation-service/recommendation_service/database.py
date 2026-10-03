@@ -93,6 +93,7 @@ class RecommendationDatabase:
                     ,p.stock_quantity
                     ,p.usage_instruction
                     ,p.warnings
+                    ,p.created_at
                 FROM products p
                 JOIN brands b ON b.id = p.brand_id
                 JOIN categories c ON c.id = p.category_id
@@ -374,6 +375,7 @@ def _row_to_product(row: dict[str, Any]) -> Product:
         stock_quantity=_int_or_none(row.get("stock_quantity")),
         usage_instruction=str(row.get("usage_instruction") or ""),
         warnings=str(row.get("warnings") or ""),
+        created_at=row.get("created_at"),
     )
 
 

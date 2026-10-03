@@ -14,12 +14,14 @@ class ProductCard extends StatefulWidget {
     this.matchScore,
     this.matchReason,
     this.onOpen,
+    this.onTap,
   });
 
   final Product product;
   final double? matchScore;
   final String? matchReason;
   final VoidCallback? onOpen;
+  final VoidCallback? onTap;
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -81,7 +83,11 @@ class _ProductCardState extends State<ProductCard> {
             child: InkWell(
               onTap: () {
                 widget.onOpen?.call();
-                context.go('/product/${product.id}');
+                if (widget.onTap != null) {
+                  widget.onTap!();
+                } else {
+                  context.go('/product/${product.id}');
+                }
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -22,6 +22,7 @@ class Product {
   final String sourceUrl;
   final String usageInstruction;
   final String warnings;
+  final DateTime? createdAt;
 
   Product({
     required this.id,
@@ -47,6 +48,7 @@ class Product {
     this.sourceUrl = '',
     this.usageInstruction = '',
     this.warnings = '',
+    this.createdAt,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,7 @@ class Product {
       sourceUrl: json['sourceUrl']?.toString() ?? '',
       usageInstruction: json['usageInstruction']?.toString() ?? '',
       warnings: json['warnings']?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       stock: (json['stockQuantity'] as num?)?.toInt(),
     );
   }

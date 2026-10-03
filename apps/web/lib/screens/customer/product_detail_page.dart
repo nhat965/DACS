@@ -33,6 +33,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _productFuture = _loadPage();
   }
 
+  @override
+  void didUpdateWidget(covariant ProductDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.productId == widget.productId) return;
+    quantity = 1;
+    // GoRouter can reuse the same page state when only :id changes. Refresh
+    // the future explicitly so navigation from a related product renders
+    // immediately instead of waiting for a full browser reload.
+    _productFuture = _loadPage();
+  }
+
   Future<Product?> _loadPage() async {
     final catalog = context.read<CatalogProvider>();
     final recommendations = context.read<RecommendationProvider>();
@@ -474,7 +485,17 @@ class _RecommendationSection extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(width: 18),
             itemBuilder: (context, index) => SizedBox(
               width: 230,
-              child: ProductCard(product: products[index]),
+              child: Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.push('/product/${products[index].id}'),
+                  child: ProductCard(
+                    product: products[index],
+                    onTap: () => context.push('/product/${products[index].id}'),
+                  ),
+                ),
+              ),
             ),
           ),
         ),

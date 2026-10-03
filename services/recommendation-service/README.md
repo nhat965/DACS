@@ -71,6 +71,12 @@ python -m pip install -r requirements.txt
 python -m uvicorn recommendation_service.api:app --reload --port 8001
 ```
 
+Trên Windows, nên chạy từ thư mục gốc bằng script để tự nạp `.env.local` (bao gồm cấu hình MySQL và tài khoản bootstrap admin):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_backend.ps1
+```
+
 ## Chạy test
 
 Chạy recommendation test từ đúng thư mục service để Python import được package

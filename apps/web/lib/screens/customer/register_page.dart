@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth_shell.dart';
 
@@ -38,6 +39,11 @@ class _RegisterPageState extends State<RegisterPage> {
     if (mounted && success) context.go('/onboarding');
   }
 
+  void _clearError(String _) {
+    final auth = context.read<AuthProvider>();
+    if (auth.errorMessage != null) auth.clearError();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -50,72 +56,64 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              AuthTextField(
                 controller: _nameController,
+                label: 'Họ và tên',
+                prefixIcon: Icons.person_outline_rounded,
                 autofillHints: const [AutofillHints.name],
-                decoration: const InputDecoration(labelText: 'Họ và tên'),
+                textInputAction: TextInputAction.next,
+                onChanged: _clearError,
                 validator: (value) => value == null || value.trim().length < 2
                     ? 'Họ tên cần ít nhất 2 ký tự.'
                     : null,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: AppSpacing.md),
+              AuthTextField(
                 controller: _emailController,
+                label: 'Email',
+                prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(labelText: 'Email'),
+                textInputAction: TextInputAction.next,
+                onChanged: _clearError,
                 validator: (value) => value != null && value.contains('@')
                     ? null
                     : 'Nhập địa chỉ email hợp lệ.',
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: AppSpacing.md),
+              AuthPasswordField(
                 controller: _passwordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.newPassword],
-                decoration: const InputDecoration(
-                  labelText: 'Mật khẩu',
-                  helperText: 'Tối thiểu 8 ký tự.',
-                ),
+                newPassword: true,
+                helperText: 'Tối thiểu 8 ký tự.',
+                onChanged: _clearError,
                 validator: (value) => value == null || value.length < 8
                     ? 'Mật khẩu cần ít nhất 8 ký tự.'
                     : null,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: AppSpacing.md),
+              AuthPasswordField(
                 controller: _confirmPasswordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.newPassword],
-                decoration: const InputDecoration(
-                  labelText: 'Xác nhận mật khẩu',
-                ),
+                label: 'Xác nhận mật khẩu',
+                newPassword: true,
+                onChanged: _clearError,
+                onFieldSubmitted: (_) => _submit(),
                 validator: (value) => value == _passwordController.text
                     ? null
                     : 'Mật khẩu xác nhận chưa khớp.',
               ),
-              if (auth.errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  auth.errorMessage!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
+              AuthMessageBanner(message: auth.errorMessage, isError: true),
+              const SizedBox(height: AppSpacing.lg),
+              AuthPrimaryButton(
+                label: 'Đăng ký và đăng nhập',
+                loading: auth.isLoading,
                 onPressed: auth.isLoading ? null : _submit,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  child: auth.isLoading
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Đăng ký và đăng nhập'),
-                ),
               ),
-              TextButton(
-                onPressed: auth.isLoading ? null : () => context.go('/login'),
-                child: const Text('Đã có tài khoản? Đăng nhập'),
+              const SizedBox(height: AppSpacing.sm),
+              AuthTextLink(
+                leadingText: 'Đã có tài khoản?',
+                label: 'Đăng nhập',
+                enabled: !auth.isLoading,
+                onPressed: () => context.go('/login'),
               ),
             ],
           ),

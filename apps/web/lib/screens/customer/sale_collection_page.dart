@@ -2,27 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/design_tokens.dart';
-import '../../providers/catalog_provider.dart';
+import '../../models/product.dart';
+import '../../services/backend_api.dart';
 import '../../widgets/app_footer.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/lumi_content_container.dart';
 import '../../widgets/lumi_states.dart';
 import '../../widgets/product_card.dart';
 
-class SaleCollectionPage extends StatelessWidget {
+class SaleCollectionPage extends StatefulWidget {
   const SaleCollectionPage({super.key, required this.title});
 
   final String title;
 
   @override
+  State<SaleCollectionPage> createState() => _SaleCollectionPageState();
+}
+
+class _SaleCollectionPageState extends State<SaleCollectionPage> {
+  List<Product> products = const [];
+  bool loading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final items = await context.read<BackendApi>().getActivePromotions();
+      if (mounted) setState(() { products = items; loading = false; });
+    } catch (exception) {
+      if (mounted) setState(() { error = BackendApi.readableError(exception); loading = false; });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final catalog = context.watch<CatalogProvider>();
-    final products = catalog.products
-        .where(
-          (product) =>
-              product.oldPrice != null && product.oldPrice! > product.price,
-        )
-        .toList();
     return Scaffold(
       body: Column(
         children: [
@@ -37,7 +55,7 @@ class SaleCollectionPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title,
+                          widget.title,
                           style: Theme.of(context).textTheme.displaySmall,
                         ),
                         const SizedBox(height: AppSpacing.xs),
@@ -46,8 +64,10 @@ class SaleCollectionPage extends StatelessWidget {
                           style: const TextStyle(color: AppColors.mutedInk),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        if (catalog.isLoading && products.isEmpty)
+                        if (loading && products.isEmpty)
                           const LumiProductGridSkeleton()
+                        else if (error != null)
+                          LumiStateCard(icon: Icons.error_outline, title: 'Không tải được khuyến mại', message: error!, actionLabel: 'Thử lại', onAction: load)
                         else if (products.isEmpty)
                           const LumiStateCard(
                             icon: Icons.local_offer_outlined,

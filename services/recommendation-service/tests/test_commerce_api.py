@@ -172,6 +172,18 @@ class FakeCommerceRepository:
     def get_admin_data_quality(self):
         return {"totalProducts": 1, "inciComplete": 1, "skinTypeComplete": 1, "concernComplete": 1, "careGoalComplete": 1, "imageComplete": 1, "priceComplete": 1, "aiReadyProducts": 1}
 
+    def get_admin_reports(self):
+        return {"revenueTrend": [], "bestSellers": [], "lowStock": []}
+
+    def get_admin_behavior_analytics(self):
+        return {"totalEvents": 0, "uniqueUsers": 0, "uniqueSessions": 0, "events": []}
+
+    def get_admin_recommendation_analytics(self):
+        return {"totalRequests": 0, "totalResults": 0, "algorithms": [], "clickThroughRate": None}
+
+    def list_active_promotions(self):
+        return {"items": [], "promotions": []}
+
     def list_admin_products(self, *, search=None, status=None, limit=25, offset=0):
         items = list(self.products.values())
         if search:
@@ -427,13 +439,17 @@ class CommerceApiTest(unittest.TestCase):
     def test_admin_operational_endpoints_are_protected_and_functional(self):
         customer_token = self._register().json()["accessToken"]
         customer_headers = {"Authorization": f"Bearer {customer_token}"}
-        for path in ("/admin/dashboard", "/admin/data-quality", "/admin/products", "/admin/inventory", "/admin/users"):
+        for path in ("/admin/dashboard", "/admin/data-quality", "/admin/reports", "/admin/behavior-analytics", "/admin/recommendation-analytics", "/admin/products", "/admin/inventory", "/admin/users"):
             self.assertEqual(self.client.get(path, headers=customer_headers).status_code, 403)
 
         admin_login = self.client.post("/auth/login", json={"email": "admin@lumi.test", "password": "Admin123"})
         admin_headers = {"Authorization": f"Bearer {admin_login.json()['accessToken']}"}
         self.assertEqual(self.client.get("/admin/dashboard", headers=admin_headers).status_code, 200)
         self.assertEqual(self.client.get("/admin/data-quality", headers=admin_headers).json()["inciComplete"], 1)
+        self.assertEqual(self.client.get("/admin/reports", headers=admin_headers).json()["bestSellers"], [])
+        self.assertEqual(self.client.get("/admin/behavior-analytics", headers=admin_headers).json()["totalEvents"], 0)
+        self.assertEqual(self.client.get("/admin/recommendation-analytics", headers=admin_headers).json()["totalRequests"], 0)
+        self.assertEqual(self.client.get("/promotions/active").json()["items"], [])
         products = self.client.get("/admin/products", headers=admin_headers)
         self.assertEqual(products.status_code, 200)
         self.assertEqual(products.json()["total"], 1)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../services/backend_api.dart';
 import '../../widgets/auth_shell.dart';
 
@@ -54,34 +55,32 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              AuthTextField(
                 controller: emailController,
+                label: 'Email',
+                prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
+                onFieldSubmitted: (_) => submit(),
+                onChanged: (_) {
+                  if (message != null) setState(() => message = null);
+                },
                 validator: (value) => value != null && value.contains('@')
                     ? null
                     : 'Nhập địa chỉ email hợp lệ.',
               ),
-              if (message != null) ...[
-                const SizedBox(height: 16),
-                Text(message!, textAlign: TextAlign.center),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
+              AuthMessageBanner(message: message),
+              const SizedBox(height: AppSpacing.lg),
+              AuthPrimaryButton(
+                label: 'Gửi yêu cầu đặt lại mật khẩu',
+                loading: loading,
                 onPressed: loading ? null : submit,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 13),
-                  child: Text('Gửi yêu cầu đặt lại mật khẩu'),
-                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextButton.icon(
                 onPressed: () => context.go('/login'),
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(Icons.arrow_back_rounded),
                 label: const Text('Quay lại đăng nhập'),
               ),
             ],

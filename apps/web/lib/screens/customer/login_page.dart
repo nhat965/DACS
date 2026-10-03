@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth_shell.dart';
 
@@ -18,7 +19,6 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -45,6 +45,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  void _clearError(String _) {
+    final auth = context.read<AuthProvider>();
+    if (auth.errorMessage != null) auth.clearError();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -57,76 +62,45 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              AuthTextField(
                 controller: _emailController,
+                label: 'Email',
+                prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
+                onChanged: _clearError,
                 validator: (value) => value != null && value.contains('@')
                     ? null
                     : 'Nhập địa chỉ email hợp lệ.',
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: AppSpacing.md),
+              AuthPasswordField(
                 controller: _passwordController,
-                obscureText: _obscurePassword,
-                autofillHints: const [AutofillHints.password],
-                decoration: InputDecoration(
-                  labelText: 'Mật khẩu',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    tooltip: _obscurePassword ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                  ),
-                ),
+                onChanged: _clearError,
                 onFieldSubmitted: (_) => _submit(),
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Nhập mật khẩu.' : null,
               ),
-              if (auth.errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  auth.errorMessage!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: auth.isLoading
-                      ? null
-                      : () => context.go('/forgot-password'),
-                  child: const Text('Quên mật khẩu?'),
-                ),
+              AuthMessageBanner(message: auth.errorMessage, isError: true),
+              AuthTextLink(
+                label: 'Quên mật khẩu?',
+                enabled: !auth.isLoading,
+                alignment: MainAxisAlignment.end,
+                onPressed: () => context.go('/forgot-password'),
               ),
-              const SizedBox(height: 24),
-              FilledButton(
+              const SizedBox(height: AppSpacing.sm),
+              AuthPrimaryButton(
+                label: 'Đăng nhập',
+                loading: auth.isLoading,
                 onPressed: auth.isLoading ? null : _submit,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  child: auth.isLoading
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Đăng nhập'),
-                ),
               ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: auth.isLoading
-                    ? null
-                    : () => context.go('/register'),
-                child: const Text('Chưa có tài khoản? Đăng ký'),
+              const SizedBox(height: AppSpacing.sm),
+              AuthTextLink(
+                leadingText: 'Chưa có tài khoản?',
+                label: 'Đăng ký ngay',
+                enabled: !auth.isLoading,
+                onPressed: () => context.go('/register'),
               ),
             ],
           ),

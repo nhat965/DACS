@@ -74,11 +74,13 @@ class HomePage extends StatelessWidget {
                                   child: PersonalizedHomePreview(),
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.section),
-                              FadeSlideIn(
-                                delay: const Duration(milliseconds: 130),
-                                child: FlashSaleSection(products: flashSale),
-                              ),
+                              if (flashSale.isNotEmpty) ...[
+                                const SizedBox(height: AppSpacing.section),
+                                FadeSlideIn(
+                                  delay: const Duration(milliseconds: 130),
+                                  child: FlashSaleSection(products: flashSale),
+                                ),
+                              ],
                               const SizedBox(height: AppSpacing.section),
                               const FadeSlideIn(
                                 delay: Duration(milliseconds: 140),

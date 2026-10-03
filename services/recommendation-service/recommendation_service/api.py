@@ -527,6 +527,18 @@ def create_app(
     def admin_data_quality(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
         return commerce_repository.get_admin_data_quality()
 
+    @app.get("/admin/reports")
+    def admin_reports(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
+        return commerce_repository.get_admin_reports()
+
+    @app.get("/admin/behavior-analytics")
+    def admin_behavior_analytics(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
+        return commerce_repository.get_admin_behavior_analytics()
+
+    @app.get("/admin/recommendation-analytics")
+    def admin_recommendation_analytics(_: UserRecord = Depends(require_admin)) -> dict[str, Any]:
+        return commerce_repository.get_admin_recommendation_analytics()
+
     @app.get("/admin/products")
     def admin_products(
         search: str | None = Query(default=None, max_length=120),
@@ -676,7 +688,7 @@ def create_app(
         goal: str | None = Query(default=None, max_length=80),
         priceMin: float | None = Query(default=None, ge=0),
         priceMax: float | None = Query(default=None, ge=0),
-        sort: str = Query(default="name_asc", pattern=r"^(name_asc|price_asc|price_desc)$"),
+        sort: str = Query(default="name_asc", pattern=r"^(name_asc|price_asc|price_desc|newest)$"),
         limit: int = Query(default=24, ge=1, le=100),
         offset: int = Query(default=0, ge=0),
     ) -> dict[str, Any]:
@@ -745,6 +757,14 @@ def create_app(
                     product.name.casefold(),
                 )
             )
+        elif sort == "newest":
+            products.sort(
+                key=lambda product: (
+                    product.created_at is None,
+                    -(product.created_at.timestamp() if product.created_at else 0),
+                    product.name.casefold(),
+                )
+            )
         else:
             products.sort(key=lambda product: product.name.casefold())
         total = len(products)
@@ -762,6 +782,16 @@ def create_app(
         if product is None:
             raise HTTPException(status_code=404, detail="Product not found")
         return _product_to_dict(product)
+
+    @app.get("/promotions/active")
+    def active_promotions() -> dict[str, Any]:
+        if commerce_repository is None:
+            return {"items": [], "promotions": []}
+        try:
+            return commerce_repository.list_active_promotions()
+        except Exception as exc:
+            logger.warning("promotion_catalog_unavailable error_type=%s", type(exc).__name__)
+            return {"items": [], "promotions": []}
 
     @app.get("/products/{productId}/reviews")
     def list_product_reviews(
@@ -1030,6 +1060,7 @@ def _product_to_dict(product) -> dict[str, Any]:
         "stockQuantity": product.stock_quantity,
         "usageInstruction": product.usage_instruction,
         "warnings": product.warnings,
+        "createdAt": product.created_at.isoformat() if product.created_at else None,
     }
 
 

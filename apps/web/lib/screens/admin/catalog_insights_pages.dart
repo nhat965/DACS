@@ -1,37 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/design_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../services/backend_api.dart';
+import 'admin_components.dart';
 
 class AdminCategoriesPage extends StatelessWidget {
   const AdminCategoriesPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final products = context.watch<CatalogProvider>().products;
-    return _CountList(
-      title: 'Danh mục',
-      icon: Icons.category_outlined,
-      counts: _counts(products.map((item) => item.category)),
-    );
-  }
+  Widget build(BuildContext context) => const _CatalogGroupPage(
+    title: 'Danh mục',
+    subtitle: 'Chọn một danh mục để xem toàn bộ sản phẩm thuộc nhóm đó.',
+    icon: Icons.category_outlined,
+    useBrand: false,
+  );
 }
 
 class AdminBrandsPage extends StatelessWidget {
   const AdminBrandsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final products = context.watch<CatalogProvider>().products;
-    return _CountList(
-      title: 'Thương hiệu',
-      icon: Icons.storefront_outlined,
-      counts: _counts(products.map((item) => item.brand)),
-    );
-  }
+  Widget build(BuildContext context) => const _CatalogGroupPage(
+    title: 'Thương hiệu',
+    subtitle: 'Chọn một thương hiệu để xem danh sách sản phẩm tương ứng.',
+    icon: Icons.storefront_outlined,
+    useBrand: true,
+  );
 }
 
 Map<String, int> _counts(Iterable<String> values) {
@@ -44,39 +42,78 @@ Map<String, int> _counts(Iterable<String> values) {
   );
 }
 
-class _CountList extends StatelessWidget {
-  const _CountList({
-    required this.title,
-    required this.icon,
-    required this.counts,
-  });
+class _CatalogGroupPage extends StatefulWidget {
+  const _CatalogGroupPage({required this.title, required this.subtitle, required this.icon, required this.useBrand});
 
   final String title;
+  final String subtitle;
   final IconData icon;
-  final Map<String, int> counts;
+  final bool useBrand;
+
+  @override
+  State<_CatalogGroupPage> createState() => _CatalogGroupPageState();
+}
+
+class _CatalogGroupPageState extends State<_CatalogGroupPage> {
+  String? selected;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CatalogProvider>().loadProducts();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final catalog = context.watch<CatalogProvider>();
+    final products = catalog.products;
+    final groups = _counts(products.map((item) => widget.useBrand ? item.brand : item.category));
+    final selectedProducts = selected == null
+        ? const []
+        : products.where((product) => (widget.useBrand ? product.brand : product.category) == selected).toList();
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        Text(title, style: Theme.of(context).textTheme.headlineMedium),
+        Text(widget.title, style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: AppSpacing.xs),
+        Text(widget.subtitle),
         const SizedBox(height: AppSpacing.lg),
-        if (counts.isEmpty)
+        if (catalog.isLoading && products.isEmpty)
+          const LinearProgressIndicator()
+        else if (catalog.errorMessage != null)
+          _AdminEmpty(catalog.errorMessage!)
+        else if (groups.isEmpty)
           const _AdminEmpty('Chưa có dữ liệu để hiển thị.')
         else
-          ...counts.entries.map(
-            (entry) => Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.lavenderMist,
-                  child: Icon(icon, color: AppColors.plum),
-                ),
-                title: Text(entry.key),
-                trailing: Text('${entry.value} sản phẩm'),
-              ),
-            ),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: groups.entries.map((entry) => ChoiceChip(
+              selected: selected == entry.key,
+              avatar: Icon(widget.icon, size: 18),
+              label: Text('${entry.key} (${entry.value})'),
+              onSelected: (_) => setState(() => selected = entry.key),
+            )).toList(),
           ),
+        if (selected != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AdminSectionCard(
+            title: '$selected (${selectedProducts.length} sản phẩm)',
+            child: selectedProducts.isEmpty
+                ? const _AdminEmpty('Không có sản phẩm trong mục này.')
+                : Column(
+                    children: selectedProducts.map((product) => ListTile(
+                      leading: SizedBox(width: 52, height: 52, child: product.image.isEmpty ? const Icon(Icons.image_not_supported_outlined) : Image.network(product.image, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.broken_image_outlined))),
+                      title: Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      subtitle: Text('${product.sku} · ${product.currency} ${product.price.toStringAsFixed(2)}'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.go('/admin/products/${product.id}'),
+                    )).toList(),
+                  ),
+          ),
+        ],
       ],
     );
   }
@@ -190,6 +227,7 @@ enum AdminMetricKind { users, recommendations }
 
 class _AdminMetricPageState extends State<AdminMetricPage> {
   Map<String, int>? metrics;
+  Map<String, dynamic>? recommendationData;
   String? error;
 
   @override
@@ -202,8 +240,13 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
     final token = context.read<AuthProvider>().accessToken;
     if (token == null) return;
     try {
-      final value = await context.read<BackendApi>().getAdminMetrics(token);
-      if (mounted) setState(() => metrics = value);
+      if (widget.kind == AdminMetricKind.recommendations) {
+        final value = await context.read<BackendApi>().getAdminRecommendationAnalytics(token);
+        if (mounted) setState(() => recommendationData = value);
+      } else {
+        final value = await context.read<BackendApi>().getAdminMetrics(token);
+        if (mounted) setState(() => metrics = value);
+      }
     } catch (exception) {
       if (mounted) setState(() => error = BackendApi.readableError(exception));
     }
@@ -213,9 +256,7 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
   Widget build(BuildContext context) {
     final users = widget.kind == AdminMetricKind.users;
     final title = users ? 'Người dùng' : 'Recommendation Analytics';
-    final value = users
-        ? (metrics?['users'])
-        : (metrics?['recommendationRequests']);
+    final value = users ? (metrics?['users']) : (recommendationData?['totalRequests']);
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -223,7 +264,7 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
         const SizedBox(height: AppSpacing.lg),
         if (error != null)
           _AdminEmpty(error!)
-        else if (metrics == null)
+        else if (users ? metrics == null : recommendationData == null)
           const LinearProgressIndicator()
         else ...[
           Card(
@@ -242,11 +283,18 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _AdminEmpty(
-            users
-                ? 'Danh sách chi tiết sẽ hiển thị khi API quản lý người dùng sẵn sàng.'
-                : 'Chưa có đủ dữ liệu click và CTR để dựng biểu đồ đáng tin cậy.',
-          ),
+          if (!users) ...[
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined, color: AppColors.plum),
+                title: const Text('Kết quả recommendation'),
+                trailing: Text('${recommendationData?['totalResults'] ?? 0}'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _AdminEmpty(recommendationData?['clickThroughRateNote']?.toString() ?? 'Chưa có dữ liệu CTR.'),
+          ] else
+            const _AdminEmpty('Danh sách chi tiết sẽ hiển thị khi API quản lý người dùng sẵn sàng.'),
         ],
       ],
     );

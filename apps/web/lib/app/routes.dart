@@ -20,8 +20,10 @@ import '../screens/customer/profile_page.dart';
 import '../screens/customer/onboarding_page.dart';
 import '../screens/customer/order_lookup_page.dart';
 import '../screens/customer/personalized_page.dart';
+import '../screens/customer/new_arrivals_page.dart';
 
 import '../screens/admin/admin_layout.dart';
+import '../screens/admin/admin_analytics_pages.dart';
 import '../screens/admin/admin_placeholder_page.dart';
 import '../screens/admin/catalog_insights_pages.dart';
 import '../screens/admin/dashboard_page.dart';
@@ -133,11 +135,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
 
     _appRoute(
       path: '/new-arrivals',
-      builder: (_, _) => const CatalogStatusPage(
-        title: 'Hàng mới về',
-        message: 'Những sản phẩm mới nhất của Lumi đang được tuyển chọn và sẽ sớm xuất hiện tại đây.',
-        icon: Icons.auto_awesome_outlined,
-      ),
+      builder: (_, _) => const NewArrivalsPage(),
     ),
     _appRoute(
       path: '/gifts',
@@ -200,7 +198,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
             ? const Scaffold(
                 body: Center(child: Text('Mã sản phẩm không hợp lệ.')),
               )
-            : ProductDetailPage(productId: id);
+            : ProductDetailPage(key: ValueKey(id), productId: id);
       },
     ),
 
@@ -262,15 +260,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
     ),
     _appRoute(
       path: '/admin/reports',
-      builder: (_, state) => _adminShell(
-        state,
-        'Báo cáo',
-        const AdminPlaceholderPage(
-          title: 'Báo cáo',
-          message: 'Báo cáo doanh thu sẽ khả dụng khi có dữ liệu theo thời gian đủ tin cậy.',
-          icon: Icons.query_stats_outlined,
-        ),
-      ),
+      builder: (_, state) => _adminShell(state, 'Báo cáo', const AdminReportsPage()),
     ),
     _appRoute(
       path: '/admin/orders',
@@ -376,15 +366,7 @@ GoRouter createAppRouter(AuthProvider auth) => GoRouter(
     ),
     _appRoute(
       path: '/admin/behavior',
-      builder: (_, state) => _adminShell(
-        state,
-        'Hành vi',
-        const AdminPlaceholderPage(
-          title: 'Hành vi người dùng',
-          message: 'Dữ liệu behavior đang được thu thập; màn hình phân tích sẽ chỉ bật khi đủ dữ liệu.',
-          icon: Icons.insights_outlined,
-        ),
-      ),
+      builder: (_, state) => _adminShell(state, 'Hành vi', const AdminBehaviorPage()),
     ),
     _appRoute(
       path: '/admin/recommendation-analytics',

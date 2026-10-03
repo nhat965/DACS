@@ -340,22 +340,25 @@ class _AdminNavTileState extends State<_AdminNavTile> {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.control),
           ),
-          child: ListTile(
-            dense: true,
-            minLeadingWidth: 24,
-            leading: AnimatedScale(
-              scale: widget.selected || hovered ? 1.04 : 1,
-              duration: const Duration(milliseconds: 170),
-              child: Icon(widget.item.icon, color: Colors.white, size: 21),
-            ),
-            title: Text(
-              widget.item.label,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+          child: Material(
+            color: Colors.transparent,
+            child: ListTile(
+              dense: true,
+              minLeadingWidth: 24,
+              leading: AnimatedScale(
+                scale: widget.selected || hovered ? 1.04 : 1,
+                duration: const Duration(milliseconds: 170),
+                child: Icon(widget.item.icon, color: Colors.white, size: 21),
               ),
+              title: Text(
+                widget.item.label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              onTap: widget.onTap,
             ),
-            onTap: widget.onTap,
           ),
         ),
       ),

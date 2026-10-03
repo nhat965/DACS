@@ -29,6 +29,8 @@ class AppColors {
   static const error = Color(0xFFB3261E);
   static const line = Color(0xFFEBDDE5);
   static const focus = Color(0xFF8358B8);
+  static const authErrorSurface = Color(0xFFFFF0F3);
+  static const authErrorText = Color(0xFF8F2948);
 
   // Compatibility aliases while the remaining screens migrate to semantic names.
   static const ivory = backgroundBase;
@@ -97,6 +99,25 @@ class AppGradients {
     colors: [Color(0xE643243A), Color(0xA66C3657), Color(0x1AD85A8A)],
     stops: [0, 0.48, 1],
   );
+
+  static const authCanvas = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFFBFD), Color(0xFFF8F1FB), Color(0xFFFFF6FA)],
+  );
+
+  static const authOverlay = LinearGradient(
+    begin: Alignment.bottomLeft,
+    end: Alignment.topRight,
+    colors: [Color(0xE63F2136), Color(0xA66C3657), Color(0x33A4588B)],
+    stops: [0, 0.52, 1],
+  );
+
+  static const authCta = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFE85C94), Color(0xFF7251B5)],
+  );
 }
 
 class AppSpacing {
@@ -119,6 +140,7 @@ class AppRadius {
   static const control = 10.0;
   static const card = 16.0;
   static const feature = 24.0;
+  static const authCard = 22.0;
   static const pill = 999.0;
 }
 
@@ -134,6 +156,15 @@ class AppShadows {
   static const header = [
     BoxShadow(color: Color(0x146C3657), blurRadius: 24, offset: Offset(0, 6)),
   ];
+  static const authCard = [
+    BoxShadow(color: Color(0x1F43243A), blurRadius: 42, offset: Offset(0, 20)),
+  ];
+  static const authButton = [
+    BoxShadow(color: Color(0x3D7251B5), blurRadius: 22, offset: Offset(0, 10)),
+  ];
+  static const authButtonHover = [
+    BoxShadow(color: Color(0x527251B5), blurRadius: 28, offset: Offset(0, 12)),
+  ];
 }
 
 class AppDurations {
@@ -143,6 +174,9 @@ class AppDurations {
   static const component = Duration(milliseconds: 240);
   static const section = Duration(milliseconds: 320);
   static const carousel = Duration(seconds: 5);
+  static const authFormEntrance = Duration(milliseconds: 420);
+  static const authBrandEntrance = Duration(milliseconds: 560);
+  static const authAmbient = Duration(seconds: 12);
 }
 
 class AppBreakpoints {

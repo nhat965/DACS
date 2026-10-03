@@ -92,6 +92,13 @@ class BackendApi {
     return Product.fromJson(response.data ?? const {});
   }
 
+  Future<List<Product>> getActivePromotions() async {
+    final response = await _dio.get<Map<String, dynamic>>('/promotions/active');
+    return (response.data?['items'] as List<dynamic>? ?? const [])
+        .map((item) => Product.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<ProductReviewPage> getProductReviews({
     required int productId,
     String? accessToken,
@@ -243,6 +250,32 @@ class BackendApi {
     return (response.data ?? const {}).map(
       (key, value) => MapEntry(key, (value as num).toInt()),
     );
+  }
+
+  Future<Map<String, dynamic>> getAdminReports(String accessToken) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/reports',
+      options: _authorized(accessToken),
+    );
+    return response.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> getAdminBehaviorAnalytics(String accessToken) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/behavior-analytics',
+      options: _authorized(accessToken),
+    );
+    return response.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> getAdminRecommendationAnalytics(
+    String accessToken,
+  ) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/admin/recommendation-analytics',
+      options: _authorized(accessToken),
+    );
+    return response.data ?? const {};
   }
 
   Future<AdminProductPage> getAdminProducts({

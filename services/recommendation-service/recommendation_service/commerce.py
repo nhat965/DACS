@@ -515,6 +515,220 @@ class MySQLCommerceRepository:
         finally:
             conn.close()
 
+    def get_admin_reports(self) -> dict[str, Any]:
+        """Return factual commerce aggregates for the admin reports screen.
+
+        Revenue is intentionally grouped by currency so the API never adds
+        amounts that cannot be compared (for example VND and USD).
+        """
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT currency, DATE(created_at) AS day,
+                       COUNT(*) AS orders,
+                       COALESCE(SUM(total_amount), 0) AS revenue
+                FROM orders
+                WHERE status = 'COMPLETED'
+                GROUP BY currency, DATE(created_at)
+                ORDER BY day ASC, currency ASC
+                """
+            )
+            revenue_trend = [
+                {
+                    "currency": str(row["currency"]),
+                    "date": row["day"].isoformat() if row.get("day") else None,
+                    "orders": int(row.get("orders") or 0),
+                    "revenue": float(row.get("revenue") or 0),
+                }
+                for row in cursor.fetchall()
+            ]
+            cursor.execute(
+                """
+                SELECT oi.product_id, p.name, p.sku, SUM(oi.quantity) AS quantity,
+                       SUM(oi.quantity * oi.unit_price) AS revenue,
+                       o.currency
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                JOIN products p ON p.id = oi.product_id
+                WHERE o.status = 'COMPLETED'
+                GROUP BY oi.product_id, p.name, p.sku, o.currency
+                ORDER BY quantity DESC, revenue DESC
+                LIMIT 10
+                """
+            )
+            best_sellers = [
+                {
+                    "productId": int(row["product_id"]),
+                    "name": str(row["name"]),
+                    "sku": str(row["sku"]),
+                    "quantity": int(row.get("quantity") or 0),
+                    "revenue": float(row.get("revenue") or 0),
+                    "currency": str(row.get("currency") or ""),
+                }
+                for row in cursor.fetchall()
+            ]
+            cursor.execute(
+                """
+                SELECT id, name, sku, stock_quantity, status
+                FROM products
+                WHERE stock_quantity <= 10 AND status IN ('ACTIVE', 'DRAFT')
+                ORDER BY stock_quantity ASC, name ASC
+                LIMIT 25
+                """
+            )
+            low_stock = [
+                {
+                    "productId": int(row["id"]),
+                    "name": str(row["name"]),
+                    "sku": str(row["sku"]),
+                    "stockQuantity": int(row.get("stock_quantity") or 0),
+                    "status": str(row["status"]),
+                }
+                for row in cursor.fetchall()
+            ]
+            return {
+                "revenueTrend": revenue_trend,
+                "bestSellers": best_sellers,
+                "lowStock": low_stock,
+            }
+        finally:
+            conn.close()
+
+    def get_admin_behavior_analytics(self) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT event_type, COUNT(*) AS count,
+                       COUNT(DISTINCT COALESCE(CAST(user_id AS CHAR), session_id)) AS actors
+                FROM user_behavior_events
+                GROUP BY event_type
+                ORDER BY count DESC, event_type ASC
+                """
+            )
+            events = [
+                {
+                    "eventType": str(row["event_type"]),
+                    "count": int(row.get("count") or 0),
+                    "actors": int(row.get("actors") or 0),
+                }
+                for row in cursor.fetchall()
+            ]
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total,
+                       COUNT(DISTINCT user_id) AS users,
+                       COUNT(DISTINCT session_id) AS sessions,
+                       MIN(occurred_at) AS firstEvent,
+                       MAX(occurred_at) AS lastEvent
+                FROM user_behavior_events
+                """
+            )
+            row = cursor.fetchone() or {}
+            return {
+                "totalEvents": int(row.get("total") or 0),
+                "uniqueUsers": int(row.get("users") or 0),
+                "uniqueSessions": int(row.get("sessions") or 0),
+                "firstEvent": row["firstEvent"].isoformat() if row.get("firstEvent") else None,
+                "lastEvent": row["lastEvent"].isoformat() if row.get("lastEvent") else None,
+                "events": events,
+            }
+        finally:
+            conn.close()
+
+    def get_admin_recommendation_analytics(self) -> dict[str, Any]:
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT algorithm, COUNT(*) AS requests,
+                       COALESCE(SUM(JSON_LENGTH(result_items)), 0) AS results
+                FROM recommendation_logs
+                GROUP BY algorithm
+                ORDER BY requests DESC, algorithm ASC
+                """
+            )
+            algorithms = [
+                {
+                    "algorithm": str(row["algorithm"]),
+                    "requests": int(row.get("requests") or 0),
+                    "results": int(row.get("results") or 0),
+                }
+                for row in cursor.fetchall()
+            ]
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS requests,
+                       COALESCE(SUM(JSON_LENGTH(result_items)), 0) AS results,
+                       MIN(created_at) AS firstRequest,
+                       MAX(created_at) AS lastRequest
+                FROM recommendation_logs
+                """
+            )
+            row = cursor.fetchone() or {}
+            return {
+                "totalRequests": int(row.get("requests") or 0),
+                "totalResults": int(row.get("results") or 0),
+                "firstRequest": row["firstRequest"].isoformat() if row.get("firstRequest") else None,
+                "lastRequest": row["lastRequest"].isoformat() if row.get("lastRequest") else None,
+                "algorithms": algorithms,
+                "clickThroughRate": None,
+                "clickThroughRateNote": "Chưa ghi nhận event click_recommendation đủ để tính CTR đáng tin cậy.",
+            }
+        finally:
+            conn.close()
+
+    def list_active_promotions(self) -> dict[str, Any]:
+        """Load currently active promotions without inventing sale prices."""
+        products = {product.product_id: product for product in self.database.load_products()}
+        conn = self.database.connect()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT p.id, p.name, p.type, p.start_at, p.end_at,
+                       pp.product_id, pp.sale_price
+                FROM promotions p
+                JOIN promotion_products pp ON pp.promotion_id = p.id
+                WHERE p.status = 'ACTIVE'
+                  AND p.start_at <= CURRENT_TIMESTAMP
+                  AND p.end_at >= CURRENT_TIMESTAMP
+                ORDER BY p.end_at ASC, p.id ASC
+                """
+            )
+            grouped: dict[int, dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                product = products.get(int(row["product_id"]))
+                if product is None or product.price is None:
+                    continue
+                promotion_id = int(row["id"])
+                promotion = grouped.setdefault(
+                    promotion_id,
+                    {
+                        "promotionId": promotion_id,
+                        "name": str(row["name"]),
+                        "type": str(row["type"]),
+                        "startAt": row["start_at"].isoformat(),
+                        "endAt": row["end_at"].isoformat(),
+                        "items": [],
+                    },
+                )
+                item = _serialize_product(product)
+                item["originalPrice"] = product.price
+                item["price"] = float(row["sale_price"])
+                promotion["items"].append(item)
+            promotions = list(grouped.values())
+            return {
+                "items": [item for promotion in promotions for item in promotion["items"]],
+                "promotions": promotions,
+            }
+        finally:
+            conn.close()
+
     def list_admin_products(
         self,
         *,
@@ -903,6 +1117,32 @@ def _serialize_admin_product(row: dict[str, Any]) -> dict[str, Any]:
         "aiReady": bool(row.get("ai_ready")),
         "createdAt": timestamp(row.get("created_at")),
         "updatedAt": timestamp(row.get("updated_at")),
+    }
+
+
+def _serialize_product(product: Any) -> dict[str, Any]:
+    return {
+        "productId": product.product_id,
+        "sku": product.sku,
+        "name": product.name,
+        "brand": product.brand,
+        "category": product.category,
+        "price": product.price,
+        "currency": product.currency,
+        "description": product.description,
+        "benefits": product.benefits,
+        "inciIngredients": product.inci_ingredients,
+        "keyIngredients": product.key_ingredients,
+        "skinTypes": list(product.skin_types),
+        "skinConcerns": list(product.skin_concerns),
+        "careGoals": list(product.care_goals),
+        "texture": product.texture,
+        "imageUrl": product.image_url,
+        "sourceUrl": product.source_url,
+        "stockQuantity": product.stock_quantity,
+        "usageInstruction": product.usage_instruction,
+        "warnings": product.warnings,
+        "createdAt": product.created_at.isoformat() if product.created_at else None,
     }
 
 
