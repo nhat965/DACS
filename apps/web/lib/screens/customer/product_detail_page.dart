@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/design_tokens.dart';
 import '../../models/product.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../utils/money.dart';
+import '../../utils/catalog_localization.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/product_reviews_section.dart';
@@ -271,9 +273,15 @@ class _ProductInformation extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _InfoChip(label: product.category),
-            ...product.skinTypes.map((value) => _InfoChip(label: value)),
-            ...product.skinConcerns.map((value) => _InfoChip(label: value)),
+            _InfoChip(label: catalogLabel(product.category)),
+            if (product.texture.isNotEmpty)
+              _InfoChip(label: catalogLabel(product.texture)),
+            ...product.skinTypes.map(
+              (value) => _InfoChip(label: catalogLabel(value)),
+            ),
+            ...product.skinConcerns.map(
+              (value) => _InfoChip(label: catalogLabel(value)),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -297,22 +305,7 @@ class _ProductInformation extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        if (product.benefits.isNotEmpty)
-          Text(
-            product.benefits,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 16, height: 1.6),
-          ),
-        if (product.keyIngredients.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          const Text(
-            'Thành phần nổi bật',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(product.keyIngredients),
-        ],
+        _ProductBenefitHook(product: product),
         const SizedBox(height: 28),
         Row(
           children: [
@@ -355,6 +348,124 @@ class _ProductInformation extends StatelessWidget {
   }
 }
 
+class _ProductBenefitHook extends StatelessWidget {
+  const _ProductBenefitHook({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final source = product.benefits.isNotEmpty
+        ? product.benefits
+        : product.description;
+    final benefit = shortBenefit(source, maxLength: 210);
+    final goals = product.careGoals
+        .map(catalogLabel)
+        .where((value) => value.trim().isNotEmpty)
+        .toSet()
+        .take(3)
+        .toList();
+
+    if (benefit.isEmpty && goals.isEmpty) return const SizedBox.shrink();
+
+    return Semantics(
+      label: 'Lợi ích nổi bật của sản phẩm',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.softPink,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: AppColors.paleRose,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.rose,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Lợi ích bạn nhận được',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.deepPlum,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (benefit.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                benefit,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.ink,
+                  height: 1.55,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (goals.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: goals
+                    .map(
+                      (goal) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: AppColors.success,
+                            ),
+                            const SizedBox(width: AppSpacing.xxs),
+                            Text(
+                              goal,
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: AppColors.deepPlum,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DetailSections extends StatelessWidget {
   const _DetailSections({required this.product});
 
@@ -364,29 +475,32 @@ class _DetailSections extends StatelessWidget {
   Widget build(BuildContext context) {
     final sections = <({String title, String value})>[
       if (product.description.isNotEmpty)
-        (title: 'Mô tả', value: product.description),
+        (title: 'Mô tả', value: cleanCatalogText(product.description)),
       if (product.benefits.isNotEmpty)
-        (title: 'Lợi ích', value: product.benefits),
+        (title: 'Lợi ích', value: cleanCatalogText(product.benefits)),
       if (product.inciIngredients.isNotEmpty)
         (title: 'Thành phần', value: product.inciIngredients),
       if (product.usageInstruction.isNotEmpty)
-        (title: 'Cách sử dụng', value: product.usageInstruction),
+        (
+          title: 'Cách sử dụng',
+          value: cleanCatalogText(product.usageInstruction),
+        ),
       if (product.warnings.isNotEmpty)
-        (title: 'Lưu ý', value: product.warnings),
+        (title: 'Lưu ý', value: cleanCatalogText(product.warnings)),
       if (product.skinTypes.isNotEmpty)
         (
           title: 'Loại da phù hợp',
-          value: product.skinTypes.join(', ').replaceAll('_', ' '),
+          value: product.skinTypes.map(catalogLabel).join(', '),
         ),
       if (product.skinConcerns.isNotEmpty)
         (
           title: 'Vấn đề da',
-          value: product.skinConcerns.join(', ').replaceAll('_', ' '),
+          value: product.skinConcerns.map(catalogLabel).join(', '),
         ),
       if (product.careGoals.isNotEmpty)
         (
           title: 'Mục tiêu chăm sóc',
-          value: product.careGoals.join(', ').replaceAll('_', ' '),
+          value: product.careGoals.map(catalogLabel).join(', '),
         ),
     ];
     if (sections.isEmpty) return const SizedBox.shrink();
@@ -432,7 +546,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Chip(
-      label: Text(label.replaceAll('_', ' ')),
+      label: Text(catalogLabel(label)),
       backgroundColor: Colors.pink.shade50,
       side: BorderSide.none,
     );

@@ -13,6 +13,7 @@ import '../../services/backend_api.dart';
 import '../../widgets/app_footer.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/product_card.dart';
+import '../../utils/catalog_localization.dart';
 
 class PersonalizedPage extends StatefulWidget {
   const PersonalizedPage({super.key});
@@ -202,13 +203,13 @@ class _PersonalizedPageState extends State<PersonalizedPage> {
       return 'Dựa trên hồ sơ và tín hiệu hành vi của bạn.';
     }
     final parts = <String>[
-      if (value.skinType != null) value.skinType!,
-      ...value.skinConcerns.take(2),
-      ...value.careGoals.take(1),
+      if (value.skinType != null) catalogLabel(value.skinType!),
+      ...value.skinConcerns.take(2).map(catalogLabel),
+      ...value.careGoals.take(1).map(catalogLabel),
     ];
     return parts.isEmpty
         ? 'Dựa trên hồ sơ đã lưu.'
-        : 'Dựa trên ${parts.join(' · ').replaceAll('_', ' ')}';
+        : 'Dựa trên ${parts.join(' · ')}';
   }
 
   Future<void> _showExplanation(BuildContext context, Product product) async {
@@ -254,7 +255,7 @@ class _PersonalizedPageState extends State<PersonalizedPage> {
                         Icons.check_circle_outline,
                         color: AppColors.success,
                       ),
-                      title: Text(reason),
+                      title: Text(localizeRecommendationReason(reason)),
                     ),
                   ),
               ],

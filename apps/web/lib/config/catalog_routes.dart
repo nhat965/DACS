@@ -26,7 +26,7 @@ class CatalogRoutes {
       backendCategories: ['lip_care'],
     ),
     CatalogDestination(
-      label: 'Skincare',
+      label: 'Chăm sóc da',
       route: '/category/skincare',
       icon: Icons.spa_outlined,
       backendCategories: [
@@ -41,7 +41,7 @@ class CatalogRoutes {
       ],
     ),
     CatalogDestination(
-      label: 'Makeup',
+      label: 'Trang điểm',
       route: '/category/makeup',
       icon: Icons.brush_outlined,
       backendCategories: ['makeup'],
@@ -53,7 +53,7 @@ class CatalogRoutes {
       backendCategories: ['fragrance'],
     ),
     CatalogDestination(
-      label: 'Bodycare',
+      label: 'Chăm sóc cơ thể',
       route: '/category/bodycare',
       icon: Icons.self_improvement_outlined,
       backendCategories: ['body_care'],

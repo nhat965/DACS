@@ -204,13 +204,32 @@ class AdminStatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
-        status,
+        _adminStatusLabel(status),
         style: Theme.of(context).textTheme.labelSmall
             ?.copyWith(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }
 }
+
+String _adminStatusLabel(String value) => switch (value.toUpperCase()) {
+  'ACTIVE' => 'Đang hoạt động',
+  'INACTIVE' => 'Không hoạt động',
+  'COMPLETED' => 'Hoàn tất',
+  'IN STOCK' => 'Còn hàng',
+  'PENDING' => 'Chờ xử lý',
+  'LOW STOCK' => 'Sắp hết hàng',
+  'DRAFT' => 'Bản nháp',
+  'CONFIRMED' => 'Đã xác nhận',
+  'SHIPPING' => 'Đang giao',
+  'PROCESSING' => 'Đang xử lý',
+  'CANCELED' => 'Đã hủy',
+  'ARCHIVED' => 'Đã lưu trữ',
+  'OUT OF STOCK' => 'Hết hàng',
+  'ADMIN' => 'Quản trị viên',
+  'CUSTOMER' => 'Khách hàng',
+  _ => value,
+};
 
 class AdminLoading extends StatelessWidget {
   const AdminLoading({super.key, this.rows = 5});

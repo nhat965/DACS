@@ -6,6 +6,8 @@ import '../../app/design_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../services/backend_api.dart';
+import '../../utils/catalog_localization.dart';
+import '../../utils/money.dart';
 import 'admin_components.dart';
 
 class AdminCategoriesPage extends StatelessWidget {
@@ -43,7 +45,12 @@ Map<String, int> _counts(Iterable<String> values) {
 }
 
 class _CatalogGroupPage extends StatefulWidget {
-  const _CatalogGroupPage({required this.title, required this.subtitle, required this.icon, required this.useBrand});
+  const _CatalogGroupPage({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.useBrand,
+  });
 
   final String title;
   final String subtitle;
@@ -69,10 +76,19 @@ class _CatalogGroupPageState extends State<_CatalogGroupPage> {
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
     final products = catalog.products;
-    final groups = _counts(products.map((item) => widget.useBrand ? item.brand : item.category));
-    final selectedProducts = selected == null
+    final selectedGroup = selected;
+    final groups = _counts(
+      products.map((item) => widget.useBrand ? item.brand : item.category),
+    );
+    final selectedProducts = selectedGroup == null
         ? const []
-        : products.where((product) => (widget.useBrand ? product.brand : product.category) == selected).toList();
+        : products
+              .where(
+                (product) =>
+                    (widget.useBrand ? product.brand : product.category) ==
+                    selectedGroup,
+              )
+              .toList();
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -90,27 +106,57 @@ class _CatalogGroupPageState extends State<_CatalogGroupPage> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: groups.entries.map((entry) => ChoiceChip(
-              selected: selected == entry.key,
-              avatar: Icon(widget.icon, size: 18),
-              label: Text('${entry.key} (${entry.value})'),
-              onSelected: (_) => setState(() => selected = entry.key),
-            )).toList(),
+            children: groups.entries
+                .map(
+                  (entry) => ChoiceChip(
+                    selected: selected == entry.key,
+                    avatar: Icon(widget.icon, size: 18),
+                    label: Text('${catalogLabel(entry.key)} (${entry.value})'),
+                    onSelected: (_) => setState(() => selected = entry.key),
+                  ),
+                )
+                .toList(),
           ),
-        if (selected != null) ...[
+        if (selectedGroup != null) ...[
           const SizedBox(height: AppSpacing.lg),
           AdminSectionCard(
-            title: '$selected (${selectedProducts.length} sản phẩm)',
+            title:
+                '${catalogLabel(selectedGroup)} (${selectedProducts.length} sản phẩm)',
             child: selectedProducts.isEmpty
                 ? const _AdminEmpty('Không có sản phẩm trong mục này.')
                 : Column(
-                    children: selectedProducts.map((product) => ListTile(
-                      leading: SizedBox(width: 52, height: 52, child: product.image.isEmpty ? const Icon(Icons.image_not_supported_outlined) : Image.network(product.image, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.broken_image_outlined))),
-                      title: Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${product.sku} · ${product.currency} ${product.price.toStringAsFixed(2)}'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.go('/admin/products/${product.id}'),
-                    )).toList(),
+                    children: selectedProducts
+                        .map(
+                          (product) => ListTile(
+                            leading: SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: product.image.isEmpty
+                                  ? const Icon(
+                                      Icons.image_not_supported_outlined,
+                                    )
+                                  : Image.network(
+                                      product.image,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => const Icon(
+                                        Icons.broken_image_outlined,
+                                      ),
+                                    ),
+                            ),
+                            title: Text(
+                              product.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${product.sku} · ${formatMoney(product.price, product.currency)}',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () =>
+                                context.go('/admin/products/${product.id}'),
+                          ),
+                        )
+                        .toList(),
                   ),
           ),
         ],
@@ -156,18 +202,21 @@ class _DataQualityPageState extends State<DataQualityPage> {
         : '${((metrics?[key] ?? 0) * 100 / total).toStringAsFixed(1)}%';
     final values = <String, String>{
       'Tổng sản phẩm': metrics == null ? '—' : '$total',
-      'AI-ready': rate('aiReadyProducts'),
-      'INCI coverage': rate('inciComplete'),
-      'Skin type coverage': rate('skinTypeComplete'),
-      'Concern coverage': rate('concernComplete'),
-      'Care goal coverage': rate('careGoalComplete'),
-      'Image coverage': rate('imageComplete'),
-      'Price coverage': rate('priceComplete'),
+      'Sẵn sàng cho AI': rate('aiReadyProducts'),
+      'Đủ thành phần INCI': rate('inciComplete'),
+      'Đủ loại da': rate('skinTypeComplete'),
+      'Đủ vấn đề da': rate('concernComplete'),
+      'Đủ mục tiêu chăm sóc': rate('careGoalComplete'),
+      'Đủ hình ảnh': rate('imageComplete'),
+      'Đủ thông tin giá': rate('priceComplete'),
     };
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        Text('Data Quality', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Chất lượng dữ liệu',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: AppSpacing.lg),
         if (error != null)
           _AdminEmpty(error!)
@@ -241,7 +290,9 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
     if (token == null) return;
     try {
       if (widget.kind == AdminMetricKind.recommendations) {
-        final value = await context.read<BackendApi>().getAdminRecommendationAnalytics(token);
+        final value = await context
+            .read<BackendApi>()
+            .getAdminRecommendationAnalytics(token);
         if (mounted) setState(() => recommendationData = value);
       } else {
         final value = await context.read<BackendApi>().getAdminMetrics(token);
@@ -256,7 +307,9 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
   Widget build(BuildContext context) {
     final users = widget.kind == AdminMetricKind.users;
     final title = users ? 'Người dùng' : 'Recommendation Analytics';
-    final value = users ? (metrics?['users']) : (recommendationData?['totalRequests']);
+    final value = users
+        ? (metrics?['users'])
+        : (recommendationData?['totalRequests']);
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
@@ -286,15 +339,23 @@ class _AdminMetricPageState extends State<AdminMetricPage> {
           if (!users) ...[
             Card(
               child: ListTile(
-                leading: const Icon(Icons.auto_awesome_outlined, color: AppColors.plum),
+                leading: const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: AppColors.plum,
+                ),
                 title: const Text('Kết quả recommendation'),
                 trailing: Text('${recommendationData?['totalResults'] ?? 0}'),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            _AdminEmpty(recommendationData?['clickThroughRateNote']?.toString() ?? 'Chưa có dữ liệu CTR.'),
+            _AdminEmpty(
+              recommendationData?['clickThroughRateNote']?.toString() ??
+                  'Chưa có dữ liệu CTR.',
+            ),
           ] else
-            const _AdminEmpty('Danh sách chi tiết sẽ hiển thị khi API quản lý người dùng sẵn sàng.'),
+            const _AdminEmpty(
+              'Danh sách chi tiết sẽ hiển thị khi API quản lý người dùng sẵn sàng.',
+            ),
         ],
       ],
     );

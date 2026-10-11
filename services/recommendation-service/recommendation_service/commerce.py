@@ -1073,7 +1073,7 @@ def _serialize_preferences(row: dict[str, Any]) -> dict[str, Any]:
         "avoidIngredients": _split_terms(row.get("avoid_ingredients")),
         "budgetMin": float(row["budget_min"]) if row.get("budget_min") is not None else None,
         "budgetMax": float(row["budget_max"]) if row.get("budget_max") is not None else None,
-        "currency": str(row.get("budget_currency") or "USD"),
+        "currency": str(row.get("budget_currency") or "VND"),
         "completed": bool(row),
     }
 
@@ -1099,7 +1099,7 @@ def _serialize_admin_product(row: dict[str, Any]) -> dict[str, Any]:
         "brand": str(row.get("brand") or ""),
         "category": str(row.get("category") or ""),
         "price": float(row.get("price") or 0),
-        "currency": str(row.get("currency") or "USD"),
+        "currency": str(row.get("currency") or "VND"),
         "stockQuantity": int(row.get("stock_quantity") or 0),
         "description": str(row.get("description") or ""),
         "benefits": str(row.get("benefits") or ""),

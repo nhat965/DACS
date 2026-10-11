@@ -8,6 +8,7 @@ import '../../app/design_tokens.dart';
 import '../../models/admin_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/backend_api.dart';
+import '../../utils/catalog_localization.dart';
 import '../../utils/money.dart';
 import 'admin_components.dart';
 
@@ -137,7 +138,13 @@ class _UsersPageState extends State<UsersPage> {
                               ),
                               DataCell(SelectableText(user.email)),
                               DataCell(AdminStatusBadge(user.role)),
-                              DataCell(Text(user.skinType ?? 'Chưa cập nhật')),
+                              DataCell(
+                                Text(
+                                  user.skinType == null
+                                      ? 'Chưa cập nhật'
+                                      : catalogLabel(user.skinType!),
+                                ),
+                              ),
                               DataCell(Text('${user.orderCount}')),
                             ],
                           ),

@@ -8,7 +8,7 @@ class BeautyPreferences {
     this.avoidIngredients = const [],
     this.budgetMin,
     this.budgetMax,
-    this.currency = 'USD',
+    this.currency = 'VND',
     this.completed = false,
   });
 
@@ -36,7 +36,7 @@ class BeautyPreferences {
       avoidIngredients: values('avoidIngredients'),
       budgetMin: (json['budgetMin'] as num?)?.toDouble(),
       budgetMax: (json['budgetMax'] as num?)?.toDouble(),
-      currency: json['currency']?.toString() ?? 'USD',
+      currency: json['currency']?.toString() ?? 'VND',
       completed: json['completed'] == true,
     );
   }

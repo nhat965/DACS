@@ -9,6 +9,7 @@ import '../../models/product.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../services/backend_api.dart';
+import '../../utils/catalog_localization.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/product_card.dart';
 
@@ -341,7 +342,7 @@ class _FilterPanel extends StatelessWidget {
                     ? Icons.radio_button_checked
                     : Icons.radio_button_off,
               ),
-              title: Text(value.replaceAll('_', ' ')),
+              title: Text(catalogLabel(value)),
               contentPadding: EdgeInsets.zero,
               onTap: () => onApply(nextCategory: value, nextBrand: brand),
             ),
@@ -480,7 +481,7 @@ class _SearchResults extends StatelessWidget {
                     ),
                   ),
                   if (category != null)
-                    Chip(label: Text(category!.replaceAll('_', ' '))),
+                    Chip(label: Text(catalogLabel(category!))),
                   if (brand != null) Chip(label: Text(brand!)),
                   if (concern != null)
                     Chip(label: Text(_friendlyFilterLabel(concern!))),
@@ -569,17 +570,7 @@ class _SearchResults extends StatelessWidget {
 }
 
 String _friendlyFilterLabel(String value) {
-  const labels = <String, String>{
-    'acne': 'Da mụn',
-    'oiliness': 'Da dầu',
-    'dryness': 'Da khô',
-    'sensitivity': 'Da nhạy cảm',
-    'dark_spot': 'Thâm & không đều màu',
-    'aging': 'Lão hóa',
-    'repair': 'Phục hồi',
-    'hydrate': 'Cấp ẩm',
-  };
-  return labels[value] ?? value.replaceAll('_', ' ');
+  return catalogLabel(value);
 }
 
 class _SearchSkeleton extends StatelessWidget {

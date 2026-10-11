@@ -245,7 +245,7 @@ class OrderCreatePayload(BaseModel):
 
 
 class PreferencesPayload(RecommendationContextPayload):
-    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
+    currency: str = Field(default="VND", pattern=r"^[A-Z]{3}$")
 
     @model_validator(mode="after")
     def copy_currency_to_budget(self):
@@ -260,7 +260,7 @@ class AdminProductPayload(BaseModel):
     brand: str = Field(min_length=1, max_length=120)
     category: str = Field(min_length=1, max_length=120)
     price: float = Field(gt=0)
-    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
+    currency: str = Field(default="VND", pattern=r"^[A-Z]{3}$")
     stockQuantity: int = Field(default=0, ge=0)
     status: ProductStatus = ProductStatus.DRAFT
     aiReady: bool = False

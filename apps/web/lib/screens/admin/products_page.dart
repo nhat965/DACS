@@ -9,6 +9,7 @@ import '../../models/admin_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/backend_api.dart';
 import '../../utils/money.dart';
+import '../../utils/catalog_localization.dart';
 import 'admin_components.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -182,7 +183,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       DataColumn(label: Text('Giá')),
                       DataColumn(label: Text('Tồn kho')),
                       DataColumn(label: Text('Trạng thái')),
-                      DataColumn(label: Text('AI-ready')),
+                      DataColumn(label: Text('Sẵn sàng cho AI')),
                       DataColumn(label: Text('')),
                     ],
                     rows: items
@@ -201,7 +202,7 @@ class _ProductsPageState extends State<ProductsPage> {
                               ),
                               DataCell(Text(product.sku)),
                               DataCell(Text(product.brand)),
-                              DataCell(Text(product.category)),
+                              DataCell(Text(catalogLabel(product.category))),
                               DataCell(
                                 Text(
                                   formatMoney(product.price, product.currency),

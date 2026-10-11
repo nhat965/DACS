@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../services/backend_api.dart';
 import '../../utils/money.dart';
+import '../../utils/catalog_localization.dart';
 import 'admin_components.dart';
 
 class ProductFormPage extends StatefulWidget {
@@ -43,7 +44,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   };
   String? brand;
   String? category;
-  String currency = 'USD';
+  String currency = 'VND';
   String status = 'DRAFT';
   bool aiReady = false;
   bool loading = false;
@@ -207,7 +208,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
         children: [
           AdminPageHeader(
             title: editing ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm',
-            subtitle: 'Dữ liệu factual được lưu trực tiếp; AI-ready chỉ hợp lệ khi đủ trường recommendation.',
+            subtitle: 'Dữ liệu thực được lưu trực tiếp; sản phẩm chỉ sẵn sàng cho AI khi đủ trường gợi ý.',
             actions: [
               OutlinedButton(
                 onPressed: loading ? null : () => context.go('/admin/products'),
@@ -275,7 +276,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 positive: true,
               ),
               _dropdown('Tiền tệ', currency, const [
-                'USD',
+                'VND',
                 'VND',
               ], (value) => setState(() => currency = value!)),
               _field(
@@ -328,7 +329,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
             title: 'AI / Data status',
             child: SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              title: const Text('AI-ready'),
+              title: const Text('Sẵn sàng cho AI'),
               subtitle: const Text(
                 'Backend sẽ từ chối nếu thiếu mô tả, ảnh, loại da, concern hoặc care goal.',
               ),
@@ -469,7 +470,8 @@ class _ProductAdminDetailPageState extends State<ProductAdminDetailPage> {
       children: [
         AdminPageHeader(
           title: item.name,
-          subtitle: '${item.sku} · ${item.brand} · ${item.category}',
+          subtitle:
+              '${item.sku} · ${item.brand} · ${catalogLabel(item.category)}',
           actions: [
             FilledButton.icon(
               onPressed: () => context.go('/admin/products/${item.id}/edit'),
@@ -487,10 +489,16 @@ class _ProductAdminDetailPageState extends State<ProductAdminDetailPage> {
               _fact('Giá', formatMoney(item.price, item.currency)),
               _fact('Tồn kho', '${item.stock ?? 0}'),
               _fact('Trạng thái', item.status),
-              _fact('AI-ready', item.aiReady ? 'Có' : 'Chưa'),
-              _fact('Loại da', item.skinTypes.join(', ')),
-              _fact('Concern', item.skinConcerns.join(', ')),
-              _fact('Care goals', item.careGoals.join(', ')),
+              _fact('Sẵn sàng cho AI', item.aiReady ? 'Có' : 'Chưa'),
+              _fact('Loại da', item.skinTypes.map(catalogLabel).join(', ')),
+              _fact(
+                'Vấn đề da',
+                item.skinConcerns.map(catalogLabel).join(', '),
+              ),
+              _fact(
+                'Mục tiêu chăm sóc',
+                item.careGoals.map(catalogLabel).join(', '),
+              ),
             ],
           ),
         ),

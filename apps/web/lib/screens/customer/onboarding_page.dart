@@ -27,7 +27,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   static const categoryOptions =
       <({String label, List<String> values, IconData icon})>[
         (
-          label: 'Skincare',
+          label: 'Chăm sóc da',
           values: [
             'cleanser',
             'toner',
@@ -40,7 +40,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           ],
           icon: Icons.spa_outlined,
         ),
-        (label: 'Makeup', values: ['makeup'], icon: Icons.brush_outlined),
+        (label: 'Trang điểm', values: ['makeup'], icon: Icons.brush_outlined),
         (label: 'Son môi', values: ['lip_care'], icon: Icons.colorize_outlined),
         (
           label: 'Nước hoa',
@@ -48,7 +48,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           icon: Icons.water_drop_outlined,
         ),
         (
-          label: 'Body care',
+          label: 'Chăm sóc cơ thể',
           values: ['body_care'],
           icon: Icons.self_improvement_outlined,
         ),
@@ -79,7 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       preferredCategories: categories.toList(),
       budgetMin: budgetMin,
       budgetMax: budgetMax,
-      currency: 'USD',
+      currency: 'VND',
       completed: true,
     );
     final success = await context.read<PreferencesProvider>().save(value);
@@ -189,10 +189,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     'oiliness': 'Dầu thừa',
                                     'dryness': 'Khô da',
                                     'sensitivity': 'Nhạy cảm',
-                                    'redness': 'Ủng đỏ',
+                                    'redness': 'Đỏ và kích ứng',
                                     'dark_spot': 'Thâm sạm',
                                     'aging': 'Lão hóa',
-                                    'large_pores': 'Lỗ chân lông',
+                                    'large_pores': 'Lỗ chân lông to',
                                     'dullness': 'Da xỉn màu',
                                   }.entries
                                   .map(
@@ -215,12 +215,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           children:
                               const {
                                     'hydrate': 'Cấp ẩm',
-                                    'brighten': 'Làm sáng',
+                                    'brighten': 'Làm sáng da',
                                     'oil_control': 'Kiểm soát dầu',
-                                    'anti_acne': 'Hỗ trợ mụn',
+                                    'anti_acne': 'Hỗ trợ giảm mụn',
                                     'anti_aging': 'Chống lão hóa',
-                                    'repair': 'Phục hồi hàng rào',
-                                    'sun_protection': 'Chống nắng',
+                                    'repair': 'Phục hồi da',
+                                    'sun_protection': 'Bảo vệ da trước nắng',
                                   }.entries
                                   .map(
                                     (option) => _ChoiceCard(
@@ -237,28 +237,28 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         ),
                         _SelectionStep(
                           title: 'Ngân sách cho mỗi sản phẩm?',
-                          subtitle: 'Catalog hiện tại dùng USD; bộ lọc sẽ giữ đúng currency.',
+                          subtitle: 'Catalog hiện tại dùng VNĐ; bộ lọc sẽ giữ đúng đơn vị tiền tệ.',
                           children: [
                             _BudgetChoice(
-                              label: 'Dưới 25 USD',
+                              label: 'Dưới 625.000 VNĐ',
                               min: null,
-                              max: 25,
+                              max: 625000,
                               selectedMin: budgetMin,
                               selectedMax: budgetMax,
                               onTap: selectBudget,
                             ),
                             _BudgetChoice(
-                              label: '25–50 USD',
-                              min: 25,
-                              max: 50,
+                              label: '625.000–1.250.000 VNĐ',
+                              min: 625000,
+                              max: 1250000,
                               selectedMin: budgetMin,
                               selectedMax: budgetMax,
                               onTap: selectBudget,
                             ),
                             _BudgetChoice(
-                              label: '50–100 USD',
-                              min: 50,
-                              max: 100,
+                              label: '1.250.000–2.500.000 VNĐ',
+                              min: 1250000,
+                              max: 2500000,
                               selectedMin: budgetMin,
                               selectedMax: budgetMax,
                               onTap: selectBudget,

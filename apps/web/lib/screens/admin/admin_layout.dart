@@ -19,7 +19,7 @@ class AdminLayout extends StatelessWidget {
 
   static const groups = <_AdminNavGroup>[
     _AdminNavGroup('TỔNG QUAN', [
-      _AdminNavItem('Dashboard', Icons.dashboard_outlined, '/admin/dashboard'),
+      _AdminNavItem('Tổng quan', Icons.dashboard_outlined, '/admin/dashboard'),
       _AdminNavItem('Báo cáo', Icons.query_stats_outlined, '/admin/reports'),
     ]),
     _AdminNavGroup('BÁN HÀNG', [
@@ -37,12 +37,12 @@ class AdminLayout extends StatelessWidget {
     ]),
     _AdminNavGroup('AI & DỮ LIỆU', [
       _AdminNavItem(
-        'Recommendation Analytics',
+        'Phân tích gợi ý',
         Icons.auto_awesome_outlined,
         '/admin/recommendation-analytics',
       ),
       _AdminNavItem(
-        'Data Quality',
+        'Chất lượng dữ liệu',
         Icons.fact_check_outlined,
         '/admin/data-quality',
       ),
@@ -67,24 +67,27 @@ class AdminLayout extends StatelessWidget {
         builder: (context, constraints) {
           final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
           if (desktop) {
-            return Row(
-              children: [
-                _AdminNavigation(
-                  currentPath: currentPath,
-                  onLogout: () => _logout(context),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _AdminTopbar(
-                        title: title,
-                        onLogout: () => _logout(context),
-                      ),
-                      Expanded(child: sessionAwareChild),
-                    ],
+            return Scaffold(
+              backgroundColor: AdminColors.background,
+              body: Row(
+                children: [
+                  _AdminNavigation(
+                    currentPath: currentPath,
+                    onLogout: () => _logout(context),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _AdminTopbar(
+                          title: title,
+                          onLogout: () => _logout(context),
+                        ),
+                        Expanded(child: sessionAwareChild),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             );
           }
           return Scaffold(
@@ -354,7 +357,9 @@ class _AdminNavTileState extends State<_AdminNavTile> {
                 widget.item.label,
                 style: TextStyle(
                   color: Colors.white,
-                  fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: widget.selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
               ),
               onTap: widget.onTap,

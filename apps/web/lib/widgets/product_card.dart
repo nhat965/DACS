@@ -6,6 +6,7 @@ import '../app/design_tokens.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../utils/money.dart';
+import '../utils/catalog_localization.dart';
 
 class ProductCard extends StatefulWidget {
   const ProductCard({
@@ -187,30 +188,10 @@ class _ProductCardState extends State<ProductCard> {
                         if (widget.matchReason != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            widget.matchReason!,
+                            localizeRecommendationReason(widget.matchReason!),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                        if (product.rating != null || product.sold != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Row(
-                            children: [
-                              if (product.rating != null) ...[
-                                const Icon(
-                                  Icons.star,
-                                  size: 16,
-                                  color: Color(0xFFC27A19),
-                                ),
-                                Text(' ${product.rating!.toStringAsFixed(1)}'),
-                              ],
-                              if (product.rating != null &&
-                                  product.sold != null)
-                                const Spacer(),
-                              if (product.sold != null)
-                                Text('${product.sold} đã bán'),
-                            ],
                           ),
                         ],
                         const SizedBox(height: AppSpacing.sm),
@@ -238,6 +219,34 @@ class _ProductCardState extends State<ProductCard> {
                               ),
                           ],
                         ),
+                        if (shortBenefit(product.benefits).isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  Icons.auto_awesome,
+                                  size: 15,
+                                  color: AppColors.rose,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Expanded(
+                                child: Text(
+                                  shortBenefit(product.benefits),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.plum,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),

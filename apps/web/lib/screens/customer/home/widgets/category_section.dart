@@ -14,10 +14,10 @@ class CategorySection extends StatelessWidget {
       'Son môi',
       'Hàng mới',
       'Quà tặng',
-      'Makeup',
-      'Skincare',
+      'Trang điểm',
+      'Chăm sóc da',
       'Nước hoa',
-      'Bodycare',
+      'Chăm sóc cơ thể',
       'Blog',
     ];
     final items = order

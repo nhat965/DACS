@@ -32,16 +32,48 @@
   <title>Lumi Beauty</title>
   <link rel="manifest" href="manifest.json">
   <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #f6f4f8;
+    }
+
+    flt-glass-pane {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden !important;
+    }
+
     /*
       Flutter paints the visible application on CanvasKit and mirrors its
       semantics into DOM nodes for assistive technologies. Keep that mirror
-      visually transparent at every desktop viewport; using a filter preserves
-      the accessibility tree while preventing Chrome from exposing the mirror
-      after a resize or DevTools toggle.
+      visually transparent at every desktop viewport. The explicit opacity and
+      pointer rules prevent Chrome from exposing the mirror after a resize or
+      DevTools toggle while preserving the accessibility tree.
     */
     flt-semantics-host {
-      filter: opacity(0%) !important;
+      opacity: 0 !important;
+      filter: none !important;
       color: transparent !important;
+      background: transparent !important;
+      pointer-events: none !important;
+      text-shadow: none !important;
+    }
+
+    flt-semantics,
+    flt-semantics-container,
+    flt-semantics-host * {
+      opacity: 0 !important;
+      color: transparent !important;
+      -webkit-text-fill-color: transparent !important;
+      background: transparent !important;
+      pointer-events: none !important;
+      text-shadow: none !important;
     }
   </style>
 </head>

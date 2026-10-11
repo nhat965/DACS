@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/design_tokens.dart';
 import '../../../../models/product.dart';
+import '../../../../models/beauty_preferences.dart';
 import '../../../../models/recommendation.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/catalog_provider.dart';
@@ -196,6 +197,8 @@ class PersonalizedHomePreview extends StatefulWidget {
 
 class _PersonalizedHomePreviewState extends State<PersonalizedHomePreview> {
   bool resolving = false;
+  bool loadingRecommendation = false;
+  BeautyPreferences? loadedPreferences;
 
   @override
   void initState() {
@@ -203,30 +206,45 @@ class _PersonalizedHomePreviewState extends State<PersonalizedHomePreview> {
     WidgetsBinding.instance.addPostFrameCallback((_) => load());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The home route can stay mounted after onboarding. Re-run the request
+    // when the saved profile object changes instead of showing the old empty state.
+    WidgetsBinding.instance.addPostFrameCallback((_) => load());
+  }
+
   Future<void> load() async {
+    if (loadingRecommendation) return;
     if (!context.read<AuthProvider>().isAuthenticated) {
       return;
     }
+    loadingRecommendation = true;
     final preferences = context.read<PreferencesProvider>();
-    if (preferences.preferences == null) {
-      await preferences.load();
+    try {
+      if (preferences.preferences == null) {
+        await preferences.load();
+      }
+      final value = preferences.preferences;
+      if (!mounted || value == null || !value.completed) return;
+      if (identical(value, loadedPreferences)) return;
+      loadedPreferences = value;
+      final recommendations = context.read<RecommendationProvider>();
+      await recommendations.loadPersonalized(
+        context: value.toRecommendationContext(),
+      );
+      if (!mounted) return;
+      setState(() => resolving = true);
+      final catalog = context.read<CatalogProvider>();
+      for (final item
+          in recommendations.personalizedResult?.items.take(4) ??
+              const <RecommendedProduct>[]) {
+        await catalog.loadProduct(item.productId);
+      }
+      if (mounted) setState(() => resolving = false);
+    } finally {
+      loadingRecommendation = false;
     }
-    if (!mounted || !preferences.isComplete) {
-      return;
-    }
-    final recommendations = context.read<RecommendationProvider>();
-    await recommendations.loadPersonalized(
-      context: preferences.preferences!.toRecommendationContext(),
-    );
-    if (!mounted) return;
-    setState(() => resolving = true);
-    final catalog = context.read<CatalogProvider>();
-    for (final item
-        in recommendations.personalizedResult?.items.take(4) ??
-            const <RecommendedProduct>[]) {
-      await catalog.loadProduct(item.productId);
-    }
-    if (mounted) setState(() => resolving = false);
   }
 
   @override

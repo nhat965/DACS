@@ -8,6 +8,7 @@ import '../../providers/preferences_provider.dart';
 import '../../models/beauty_preferences.dart';
 import '../../app/design_tokens.dart';
 import '../../utils/money.dart';
+import '../../utils/catalog_localization.dart';
 import '../../widgets/app_header.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -139,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                   ),
                                   subtitle: Text(
-                                    '${order.status} · ${formatMoney(order.totalAmount, order.currency)}',
+                                    '${catalogStatusLabel(order.status)} · ${formatMoney(order.totalAmount, order.currency)}',
                                   ),
                                   children: order.items
                                       .map(
@@ -240,18 +241,19 @@ class _PreferenceDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = <String>[
-      if (preferences.skinType != null) 'Da: ${preferences.skinType}',
+      if (preferences.skinType != null)
+        'Da: ${catalogLabel(preferences.skinType!)}',
       ...preferences.skinConcerns.map(
-        (value) => 'Concern: ${value.replaceAll('_', ' ')}',
+        (value) => 'Vấn đề: ${catalogLabel(value)}',
       ),
       ...preferences.careGoals.map(
-        (value) => 'Mục tiêu: ${value.replaceAll('_', ' ')}',
+        (value) => 'Mục tiêu: ${catalogLabel(value)}',
       ),
       ...preferences.preferredCategories.map(
-        (value) => 'Danh mục: ${value.replaceAll('_', ' ')}',
+        (value) => 'Danh mục: ${catalogLabel(value)}',
       ),
       if (preferences.budgetMin != null || preferences.budgetMax != null)
-        'Ngân sách: ${preferences.budgetMin?.toStringAsFixed(0) ?? '0'}–${preferences.budgetMax?.toStringAsFixed(0) ?? '∞'} ${preferences.currency}',
+        'Ngân sách: ${preferences.budgetMin?.toStringAsFixed(0) ?? '0'}–${preferences.budgetMax?.toStringAsFixed(0) ?? '∞'} ${catalogCurrencyLabel(preferences.currency)}',
     ];
     return Wrap(
       spacing: AppSpacing.xs,

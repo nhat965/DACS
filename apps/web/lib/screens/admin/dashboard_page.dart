@@ -187,7 +187,7 @@ class _KpiGrid extends StatelessWidget {
         color: AdminColors.danger,
       ),
       AdminStatCard(
-        label: 'AI-ready',
+        label: 'Sẵn sàng cho AI',
         value: '${data.aiReadyProducts}',
         icon: Icons.auto_awesome_outlined,
         color: AdminColors.aiAccent,
@@ -271,7 +271,10 @@ class _DataSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tỷ lệ AI-ready', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Tỷ lệ dữ liệu sẵn sàng cho AI',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: AppSpacing.sm),
         LinearProgressIndicator(
           value: rate,
