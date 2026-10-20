@@ -3,7 +3,7 @@
   "services": {
     "lumi_web": {
       "root": "apps/web",
-      "framework": "other",
+      "framework": null,
       "buildCommand": "bash scripts/vercel_build.sh",
       "outputDirectory": "build/web"
     },
