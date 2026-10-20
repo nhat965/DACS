@@ -1,6 +1,29 @@
-# Hệ thống gợi ý mỹ phẩm
+# Lumi Beauty — Nền tảng tư vấn & gợi ý mỹ phẩm
 
-Đồ án cơ sở tập trung vào độ tin cậy dữ liệu, khả năng truy vết nguồn, gợi ý an toàn và giải thích được. Flutter frontend nằm tại `apps/web` và đang được tích hợp theo API contract.
+Lumi Beauty là đồ án cơ sở về thương mại mỹ phẩm có cá nhân hóa. Hệ thống kết hợp catalog MySQL, FastAPI, Flutter Web và recommendation engine để giúp người dùng tìm, hiểu và lựa chọn sản phẩm theo loại da, mối quan tâm, mục tiêu chăm sóc và ngân sách.
+
+## Chức năng nổi bật
+
+| Trang chủ & khám phá danh mục | Tìm kiếm và lọc theo dữ liệu thật |
+| --- | --- |
+| ![Trang chủ Lumi Beauty](docs/screenshots/home.png) | ![Tìm kiếm và lọc sản phẩm](docs/screenshots/search-filter.png) |
+| Hero carousel, danh mục điều hướng, gợi ý cá nhân hóa và lối vào tư vấn AI. | Tìm kiếm từ backend, lọc theo danh mục/thương hiệu và hiển thị giá VND đã chuẩn hóa. |
+
+| Chi tiết sản phẩm có định hướng lợi ích | Lumi AI tư vấn theo catalog |
+| --- | --- |
+| ![Chi tiết sản phẩm](docs/screenshots/product-detail.png) | ![Lumi AI Cosmetic Consultant](docs/screenshots/lumi-ai.png) |
+| Hiển thị tồn kho, giá, lợi ích chính, loại da phù hợp, số lượng và các CTA mua hàng. | Chat tiếng Việt, dùng dữ liệu sản phẩm đã xác minh; đề xuất bị ràng buộc bởi ngân sách, thành phần cần tránh và hồ sơ da. |
+
+### Luồng trải nghiệm chính
+
+```text
+Đăng ký / đăng nhập
+  → Khảo sát da & sở thích
+  → Gợi ý cá nhân hóa
+  → Tìm kiếm / lọc / xem chi tiết
+  → Giỏ hàng / đặt đơn
+  → Theo dõi trạng thái đơn hàng
+```
 
 ## Current Scope
 
