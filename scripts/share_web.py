@@ -82,7 +82,7 @@ class LumiShareHandler(SimpleHTTPRequestHandler):
         connection = http.client.HTTPConnection(
             self.backend_host,
             self.backend_port,
-            timeout=30,
+            timeout=45,
         )
         try:
             connection.request(self.command, self.path, body=body, headers=headers)

@@ -99,6 +99,7 @@ Hard constraint trả `FILTERED_OUT` cùng reason code như `USER_EXCLUDED_INGRE
 - `POST /recommendations/personalized`
 - `GET /recommendations/similar-products/{productId}`
 - `POST /recommendations/explain`
+- `POST /chat` (Gemini, grounded bằng catalog và recommendation engine)
 
 Contract: `contracts/openapi/system-api.yaml`.
 
@@ -131,3 +132,41 @@ Fixture hiện tại là expert/developer-defined offline set, không phải pro
 ## Configuration
 
 Copy `.env.example` thành `.env.local` cho môi trường local. Không commit credential. Khi có budget, API yêu cầu `budgetCurrency`; importer chỉ nhận record có currency hợp lệ.
+
+## Lumi AI Cosmetic Consultant
+
+Lumi AI chạy qua FastAPI; Flutter không nhận hoặc lưu Gemini API key. Backend
+trích xuất ràng buộc từ câu hỏi tiếng Việt, kết hợp hồ sơ đăng nhập, lọc/xếp hạng
+bằng recommendation engine rồi chỉ gửi các ứng viên đã xác minh sang Gemini. Mọi
+`productId` do mô hình trả về đều được kiểm tra lại trước khi gửi sang giao diện.
+Lumi AI còn trả kết quả có cấu trúc cho routine sáng/tối, cảnh báo an toàn,
+thông tin còn thiếu và câu hỏi tiếp theo. Backend kiểm tra lại mọi sản phẩm trong
+routine, đồng thời không cho tổng giá các sản phẩm được chọn vượt ngân sách đã nêu.
+Nội dung hoạt chất chỉ được cảnh báo khi dữ liệu thành phần tương ứng có trong catalog.
+Khi người dùng đổi sang một danh mục mới trong hội thoại (ví dụ từ chăm sóc da khô
+sang mặt nạ), danh mục và ngân sách ở lượt mới được ưu tiên; hồ sơ/lịch sử chỉ dùng
+để xếp hạng. Khi Gemini tạm quá tải, giao diện vẫn nhận các sản phẩm đã lọc từ catalog
+và thông báo rõ phần diễn giải AI đang chậm.
+
+Thêm vào `.env.local` (không commit):
+
+```dotenv
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_TIMEOUT_SECONDS=15
+```
+
+Chạy backend và web:
+
+```powershell
+python -m pip install -r services/recommendation-service/requirements.txt
+powershell -ExecutionPolicy Bypass -File .\scripts\start_backend.ps1
+
+Set-Location apps\web
+flutter build web --release
+Set-Location ..\..
+python .\scripts\share_web.py --host 127.0.0.1 --port 8080 --backend-port 8001
+```
+
+Mở `http://127.0.0.1:8080/`, chọn **Tư vấn cùng Lumi AI**, rồi thử:
+`Da tôi khô và nhạy cảm, cần routine sáng tối đơn giản để làm dịu và cấp ẩm. Tổng ngân sách 500k, tránh hương liệu. Hãy giải thích cách dùng và lưu ý khi kết hợp.`

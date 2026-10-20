@@ -22,7 +22,7 @@ Pipeline runtime: candidate generation → hard-constraint/safety filter → KB 
 
 `avoidIngredients` là hard exclusion và dùng canonical ingredient aliases; preferred brand/category là soft preference. Budget phải đi cùng `budgetCurrency`.
 
-Endpoints implemented: `/health`, `/ready`, `/products`, `/products/{productId}`, `/behavior-events`, `/recommendations/personalized`, `/recommendations/similar-products/{productId}`, `/recommendations/explain`.
+Endpoints implemented: `/health`, `/ready`, `/products`, `/products/{productId}`, `/behavior-events`, `/recommendations/personalized`, `/recommendations/similar-products/{productId}`, `/recommendations/explain`, `/chat`.
 
 Offline evaluation:
 
@@ -41,6 +41,8 @@ recommendation_service/
   catalog.py   # Load CSV catalog, map sang Product model
   engine.py    # KB + content-based + hybrid scoring
   models.py    # Dataclass request/response nội bộ
+  chat.py      # Retrieval, prompt grounding và validation product ID
+  llm.py       # Provider abstraction + Gemini adapter
 tests/
   test_engine.py
 ```
@@ -51,6 +53,7 @@ tests/
 - `POST /recommendations/personalized`
 - `GET /recommendations/similar-products/{productId}`
 - `POST /recommendations/explain`
+- `POST /chat`
 
 Chi tiết contract nằm ở `contracts/openapi/system-api.yaml`.
 
@@ -76,6 +79,10 @@ Trên Windows, nên chạy từ thư mục gốc bằng script để tự nạp 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start_backend.ps1
 ```
+
+Để bật Lumi AI, đặt `GEMINI_API_KEY` trong `.env.local`. Có thể đổi model bằng
+`GEMINI_MODEL` (mặc định `gemini-3.5-flash-lite`) và timeout bằng
+`GEMINI_TIMEOUT_SECONDS`. Khóa chỉ được đọc ở backend.
 
 ## Chạy test
 

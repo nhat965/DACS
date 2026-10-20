@@ -482,25 +482,31 @@ paths:
           description: Schema validation failed
         "503":
           description: Required database unavailable
-  /chatbot/messages:
+  /chat:
     post:
-      summary: Send a message to the consultation chatbot
+      summary: Consult Lumi AI with catalog-grounded product data
       tags: [Chatbot]
-      x-implementation-status: PLANNED
-      description: Future extension. No chatbot production endpoint is implemented in the current repository.
+      x-implementation-status: IMPLEMENTED
+      description: >-
+        Uses the authenticated profile when available, retrieves verified catalog
+        candidates and validates all LLM product IDs before returning them.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ChatbotMessageRequest"
+              $ref: "#/components/schemas/ChatRequest"
       responses:
         "200":
           description: Chatbot response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ChatbotMessageResponse"
+                $ref: "#/components/schemas/ChatResponse"
+        "502":
+          description: LLM provider failed or returned an invalid response
+        "503":
+          description: LLM provider is not configured or temporarily unavailable
   /analytics/dashboard-summary:
     get:
       summary: Get admin dashboard summary metrics
@@ -1019,14 +1025,56 @@ components:
               type: boolean
             degradedMode:
               type: boolean
-    ChatbotMessageRequest:
+    RecommendationContext:
+      type: object
+      properties:
+        skinType:
+          type: string
+          enum: [normal, dry, oily, combination, sensitive, unknown]
+        skinConcerns:
+          type: array
+          items:
+            type: string
+        careGoals:
+          type: array
+          items:
+            type: string
+        budgetMin:
+          type: number
+          minimum: 0
+        budgetMax:
+          type: number
+          minimum: 0
+        budgetCurrency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        preferredCategories:
+          type: array
+          items:
+            type: string
+        preferredBrands:
+          type: array
+          items:
+            type: string
+        avoidIngredients:
+          type: array
+          items:
+            type: string
+    ChatHistoryMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    ChatRequest:
       type: object
       required: [message]
       properties:
-        userId:
-          type: integer
-          minimum: 1
-          nullable: true
         sessionId:
           type: string
           minLength: 1
@@ -1034,21 +1082,90 @@ components:
           nullable: true
         message:
           type: string
-        context:
-          type: object
-          additionalProperties: true
-    ChatbotMessageResponse:
+          minLength: 1
+          maxLength: 2000
+        history:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/ChatHistoryMessage"
+        profile:
+          $ref: "#/components/schemas/RecommendationContext"
+    ChatRecommendation:
       type: object
+      required: [productId, explanation, product]
       properties:
-        reply:
+        productId:
+          type: integer
+          minimum: 1
+        explanation:
           type: string
-        suggestedProductIds:
+        product:
+          $ref: "#/components/schemas/Product"
+    ChatResponse:
+      type: object
+      required: [response, recommendedProductIds, recommendations, followUpQuestions, resolvedProfile, consultationType, routine, cautions, missingInformation]
+      properties:
+        response:
+          type: string
+        recommendedProductIds:
           type: array
           items:
             type: integer
             minimum: 1
-        safetyNote:
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatRecommendation"
+        followUpQuestions:
+          type: array
+          items:
+            type: string
+        resolvedProfile:
+          $ref: "#/components/schemas/RecommendationContext"
+        consultationType:
           type: string
+          enum: [general, recommendation, routine, comparison, safety]
+        routine:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatRoutineStep"
+        cautions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatCaution"
+        missingInformation:
+          type: array
+          items:
+            type: string
+    ChatRoutineStep:
+      type: object
+      required: [order, timeOfDay, label, productId, product, instruction, reason]
+      properties:
+        order: {type: integer, minimum: 1, maximum: 10}
+        timeOfDay:
+          type: string
+          enum: [morning, evening, both, weekly]
+        label: {type: string}
+        productId:
+          type: integer
+          minimum: 1
+          nullable: true
+        product:
+          allOf:
+            - $ref: "#/components/schemas/Product"
+          nullable: true
+        instruction: {type: string}
+        reason: {type: string}
+    ChatCaution:
+      type: object
+      required: [severity, title, detail]
+      properties:
+        severity:
+          type: string
+          enum: [info, warning, medical]
+        title: {type: string}
+        detail: {type: string}
     DashboardSummaryResponse:
       type: object
       properties:

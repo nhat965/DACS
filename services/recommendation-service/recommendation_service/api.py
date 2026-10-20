@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Path as ApiPath, Query, Request
@@ -21,6 +21,7 @@ except ImportError as exc:  # pragma: no cover - import guard is for local setup
     ) from exc
 
 from .catalog import DEFAULT_CATALOG_PATH, CatalogRepository
+from .chat import ChatService, ConversationTurn
 from .auth import (
     AuthSettings,
     InvalidTokenError,
@@ -37,6 +38,7 @@ from .commerce import (
 )
 from .database import ProductNotFoundError, RecommendationDatabase, merge_context
 from .engine import RecommendationEngine
+from .llm import LLMProvider, LLMProviderError, build_llm_provider_from_env
 from .models import BehaviorEvent, RecommendationContext, RecommendationRequest
 
 
@@ -304,11 +306,39 @@ class AdminOrderStatusPayload(BaseModel):
     status: OrderStatus
 
 
+class ChatHistoryPayload(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content")
+    @classmethod
+    def normalize_content(cls, value: str) -> str:
+        return value.strip()
+
+
+class ChatPayload(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[ChatHistoryPayload] = Field(default_factory=list, max_length=10)
+    profile: RecommendationContextPayload = Field(default_factory=RecommendationContextPayload)
+    sessionId: SessionId | None = None
+
+    @field_validator("message")
+    @classmethod
+    def normalize_message(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("sessionId", mode="before")
+    @classmethod
+    def normalize_session_id(cls, value):
+        return _normalize_session_id(value)
+
+
 def create_app(
     catalog_repository: CatalogRepository | None = None,
     database_override: Any = _UNSET,
     commerce_repository_override: Any = _UNSET,
     auth_settings_override: AuthSettings | None = None,
+    llm_provider_override: LLMProvider | Any = _UNSET,
 ) -> FastAPI:
     catalog_path = Path(os.getenv("RECOMMENDATION_CATALOG_PATH", str(DEFAULT_CATALOG_PATH)))
     database = RecommendationDatabase.from_env() if database_override is _UNSET else database_override
@@ -327,6 +357,11 @@ def create_app(
         else commerce_repository_override
     )
     auth_settings = auth_settings_override or AuthSettings.from_env()
+    llm_provider = (
+        build_llm_provider_from_env()
+        if llm_provider_override is _UNSET
+        else llm_provider_override
+    )
     if isinstance(commerce_repository, MySQLCommerceRepository):
         _bootstrap_admin(commerce_repository)
     engine = RecommendationEngine(catalog)
@@ -950,6 +985,76 @@ def create_app(
             "scoreBreakdown": item.score_breakdown,
         }
 
+    @app.post("/chat")
+    async def chat(
+        payload: ChatPayload,
+        user: UserRecord | None = Depends(optional_user),
+    ) -> dict[str, Any]:
+        request = _chat_payload_to_request(payload, user_id=user.id if user else None)
+        if personalization_database is not None:
+            try:
+                request = _hydrate_request_from_database(personalization_database, request)
+            except Exception as exc:
+                raise _database_http_error(exc) from exc
+        service = ChatService(
+            catalog=catalog,
+            engine=engine,
+            llm_provider=llm_provider,
+        )
+        try:
+            result = await service.consult(
+                message=payload.message,
+                history=tuple(
+                    ConversationTurn(role=item.role, content=item.content)
+                    for item in payload.history
+                ),
+                context=request.context,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                behaviors=request.behaviors,
+            )
+        except LLMProviderError as exc:
+            status_code = 503 if exc.unavailable else 502
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        return {
+            "response": result.response,
+            "recommendedProductIds": [
+                item.product.product_id for item in result.recommendations
+            ],
+            "recommendations": [
+                {
+                    "productId": item.product.product_id,
+                    "explanation": item.explanation,
+                    "product": _product_to_dict(item.product),
+                }
+                for item in result.recommendations
+            ],
+            "followUpQuestions": list(result.follow_up_questions),
+            "resolvedProfile": _context_to_dict(result.context),
+            "consultationType": result.consultation_type,
+            "routine": [
+                {
+                    "order": item.order,
+                    "timeOfDay": item.time_of_day,
+                    "label": item.label,
+                    "productId": item.product.product_id if item.product else None,
+                    "product": _product_to_dict(item.product) if item.product else None,
+                    "instruction": item.instruction,
+                    "reason": item.reason,
+                }
+                for item in result.routine
+            ],
+            "cautions": [
+                {
+                    "severity": item.severity,
+                    "title": item.title,
+                    "detail": item.detail,
+                }
+                for item in result.cautions
+            ],
+            "missingInformation": list(result.missing_information),
+        }
+
     return app
 
 
@@ -987,6 +1092,30 @@ def _payload_to_request(payload: RecommendationPayload) -> RecommendationRequest
             for event in payload.behaviors
         ),
         exclude_product_ids=tuple(payload.excludeProductIds),
+    )
+
+
+def _chat_payload_to_request(
+    payload: ChatPayload,
+    *,
+    user_id: int | None,
+) -> RecommendationRequest:
+    context = RecommendationContext(
+        skin_type=payload.profile.skinType,
+        skin_concerns=tuple(payload.profile.skinConcerns),
+        care_goals=tuple(payload.profile.careGoals),
+        budget_min=payload.profile.budgetMin,
+        budget_max=payload.profile.budgetMax,
+        budget_currency=payload.profile.budgetCurrency,
+        preferred_categories=tuple(payload.profile.preferredCategories),
+        preferred_brands=tuple(payload.profile.preferredBrands),
+        avoid_ingredients=tuple(payload.profile.avoidIngredients),
+    )
+    return RecommendationRequest(
+        user_id=user_id,
+        session_id=payload.sessionId,
+        limit=8,
+        context=context,
     )
 
 

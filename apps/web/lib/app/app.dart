@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/ai_chat_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../providers/order_provider.dart';
@@ -30,6 +31,7 @@ class _LumiBeautyAppState extends State<LumiBeautyApp> {
   late final PreferencesProvider _preferences;
   late final CartProvider _cart;
   late final OrderProvider _orders;
+  late final AiChatProvider _chat;
   late final GoRouter _router;
 
   @override
@@ -42,6 +44,7 @@ class _LumiBeautyAppState extends State<LumiBeautyApp> {
     _preferences = PreferencesProvider(_api, _auth);
     _cart = CartProvider(_recommendations);
     _orders = OrderProvider(_api, _auth);
+    _chat = AiChatProvider(_api, _auth, _recommendations);
     _router = createAppRouter(_auth);
   }
 
@@ -53,6 +56,7 @@ class _LumiBeautyAppState extends State<LumiBeautyApp> {
     _preferences.dispose();
     _cart.dispose();
     _orders.dispose();
+    _chat.dispose();
     _router.dispose();
     super.dispose();
   }
@@ -70,6 +74,7 @@ class _LumiBeautyAppState extends State<LumiBeautyApp> {
         ChangeNotifierProvider<PreferencesProvider>.value(value: _preferences),
         ChangeNotifierProvider<CartProvider>.value(value: _cart),
         ChangeNotifierProvider<OrderProvider>.value(value: _orders),
+        ChangeNotifierProvider<AiChatProvider>.value(value: _chat),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

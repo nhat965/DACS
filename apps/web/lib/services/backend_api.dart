@@ -8,6 +8,7 @@ import '../models/recommendation.dart';
 import '../models/order.dart';
 import '../models/user_profile.dart';
 import '../models/admin_models.dart';
+import '../models/ai_chat.dart';
 
 class BackendApi {
   BackendApi({Dio? dio})
@@ -260,7 +261,9 @@ class BackendApi {
     return response.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> getAdminBehaviorAnalytics(String accessToken) async {
+  Future<Map<String, dynamic>> getAdminBehaviorAnalytics(
+    String accessToken,
+  ) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/admin/behavior-analytics',
       options: _authorized(accessToken),
@@ -474,6 +477,27 @@ class BackendApi {
       },
     );
     return RecommendedProduct.fromJson(response.data ?? const {});
+  }
+
+  Future<AiChatResponse> sendChatMessage({
+    required String message,
+    required List<AiChatMessage> history,
+    required String sessionId,
+    String? accessToken,
+    Map<String, dynamic> profile = const {},
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/chat',
+      options: (accessToken == null ? Options() : _authorized(accessToken))
+        ..receiveTimeout = const Duration(seconds: 45),
+      data: {
+        'message': message,
+        'sessionId': sessionId,
+        'history': history.map((item) => item.toHistoryJson()).toList(),
+        'profile': profile,
+      },
+    );
+    return AiChatResponse.fromJson(response.data ?? const {});
   }
 
   Future<void> trackBehavior({
