@@ -79,13 +79,27 @@ class LumiShareHandler(SimpleHTTPRequestHandler):
         if body is not None:
             headers["Content-Length"] = str(len(body))
 
+        # Production builds use same-origin `/api/*` so Vercel can route the
+        # request to its FastAPI service. The local FastAPI app remains mounted
+        # at `/`, therefore the development proxy removes that prefix only for
+        # the upstream request. Older local builds that call `/products` still
+        # work unchanged.
+        request_url = urlsplit(self.path)
+        upstream_path = request_url.path
+        if upstream_path == "/api":
+            upstream_path = "/"
+        elif upstream_path.startswith("/api/"):
+            upstream_path = upstream_path[len("/api") :]
+        if request_url.query:
+            upstream_path = f"{upstream_path}?{request_url.query}"
+
         connection = http.client.HTTPConnection(
             self.backend_host,
             self.backend_port,
             timeout=45,
         )
         try:
-            connection.request(self.command, self.path, body=body, headers=headers)
+            connection.request(self.command, upstream_path, body=body, headers=headers)
             response = connection.getresponse()
             payload = b"" if head_only else response.read()
             self.send_response(response.status, response.reason)

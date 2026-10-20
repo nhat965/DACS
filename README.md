@@ -193,3 +193,14 @@ python .\scripts\share_web.py --host 127.0.0.1 --port 8080 --backend-port 8001
 
 Mở `http://127.0.0.1:8080/`, chọn **Tư vấn cùng Lumi AI**, rồi thử:
 `Da tôi khô và nhạy cảm, cần routine sáng tối đơn giản để làm dịu và cấp ẩm. Tổng ngân sách 500k, tránh hương liệu. Hãy giải thích cách dùng và lưu ý khi kết hợp.`
+
+## Triển khai cloud một đường link
+
+Repository đã có cấu hình **Vercel Services**: Flutter Web và FastAPI được build
+độc lập nhưng chung một domain; các request `/api/*` đi đến FastAPI và dữ liệu
+người dùng/đơn hàng/đánh giá được lưu trong Managed MySQL cloud. Xem hướng dẫn
+đầy đủ tại [docs/deployment/vercel.md](docs/deployment/vercel.md).
+
+Vercel không lưu thay MySQL local. Trước khi deploy production, cần import
+database hiện tại (hoặc chạy migrations rồi seed dữ liệu đã được phê duyệt) vào
+Managed MySQL và cấu hình toàn bộ secret trong Vercel Environment Variables.
