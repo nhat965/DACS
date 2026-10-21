@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 from .models import BehaviorEvent, Product, RecommendationContext, RecommendedProduct
 
@@ -37,6 +38,27 @@ class MySQLSettings:
     def from_env(cls, repo_root: Path = REPO_ROOT) -> "MySQLSettings":
         _load_env_file(repo_root / ".env.local")
         enabled_value = os.getenv("RECOMMENDATION_DB_ENABLED", "false").strip().lower()
+        mysql_url = os.getenv("MYSQL_URL") or os.getenv("MYSQL_PRIVATE_URL")
+        if mysql_url:
+            parsed_url = urlsplit(mysql_url)
+            if parsed_url.scheme not in {"mysql", "mysql+mysqlconnector"}:
+                raise ValueError("MYSQL_URL must use the mysql:// scheme")
+
+            host = parsed_url.hostname
+            user = unquote(parsed_url.username or "")
+            database = unquote(parsed_url.path.lstrip("/"))
+            if not host or not user or not database:
+                raise ValueError("MYSQL_URL must include a host, username, and database")
+
+            return cls(
+                host=host,
+                port=parsed_url.port or 3306,
+                user=user,
+                password=unquote(parsed_url.password or ""),
+                database=database,
+                enabled=enabled_value in {"1", "true", "yes", "on"},
+            )
+
         return cls(
             host=os.getenv("MYSQL_HOST", "127.0.0.1"),
             port=int(os.getenv("MYSQL_PORT", "3306")),

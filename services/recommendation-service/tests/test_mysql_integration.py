@@ -5,6 +5,8 @@ import unittest
 import uuid
 from datetime import datetime
 
+from recommendation_service.database import MySQLSettings
+
 
 MYSQL_INTEGRATION_ENABLED = (
     os.getenv("RUN_RECOMMENDATION_MYSQL_INTEGRATION", "").lower()
@@ -26,12 +28,13 @@ class RecommendationMySQLIntegrationTest(unittest.TestCase):
         os.environ["RECOMMENDATION_DB_ENABLED"] = "true"
         import mysql.connector  # type: ignore
 
+        settings = MySQLSettings.from_env()
         self.conn = mysql.connector.connect(
-            host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-            port=int(os.getenv("MYSQL_PORT", "3306")),
-            user=os.getenv("MYSQL_USER", "root"),
-            password=os.getenv("MYSQL_PASSWORD", ""),
-            database=os.getenv("MYSQL_DATABASE", "cosmetic_ecommerce"),
+            host=settings.host,
+            port=settings.port,
+            user=settings.user,
+            password=settings.password,
+            database=settings.database,
             charset="utf8mb4",
             autocommit=False,
         )

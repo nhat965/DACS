@@ -1,12 +1,51 @@
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
 
-from recommendation_service.database import ProductNotFoundError, _row_to_behavior_event, _row_to_product, merge_context, to_utc_naive
+from recommendation_service.database import (
+    MySQLSettings,
+    ProductNotFoundError,
+    _row_to_behavior_event,
+    _row_to_product,
+    merge_context,
+    to_utc_naive,
+)
 from recommendation_service.engine import _time_decay
 from recommendation_service.models import RecommendationContext
 
 
 class DatabaseMappingTest(unittest.TestCase):
+    def test_mysql_settings_parses_url_and_decodes_credentials(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "MYSQL_URL": "mysql://db%40user:p%40ss%3Aword@mysql.railway.internal:3307/railway",
+                "RECOMMENDATION_DB_ENABLED": "true",
+            },
+            clear=True,
+        ):
+            settings = MySQLSettings.from_env(repo_root=Path("missing-env-root"))
+
+        self.assertEqual(settings.host, "mysql.railway.internal")
+        self.assertEqual(settings.port, 3307)
+        self.assertEqual(settings.user, "db@user")
+        self.assertEqual(settings.password, "p@ss:word")
+        self.assertEqual(settings.database, "railway")
+        self.assertTrue(settings.enabled)
+
+    def test_mysql_settings_rejects_url_without_database(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "MYSQL_URL": "mysql://user:password@mysql.railway.internal",
+                "RECOMMENDATION_DB_ENABLED": "true",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "host, username, and database"):
+                MySQLSettings.from_env(repo_root=Path("missing-env-root"))
+
     def test_merge_context_prefers_explicit_request_values(self):
         explicit = RecommendationContext(
             skin_type="oily",

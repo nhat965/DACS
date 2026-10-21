@@ -15,9 +15,15 @@ export PATH="$FLUTTER_HOME/bin:$PATH"
 flutter config --no-analytics
 flutter pub get
 
-# Keep browser traffic same-origin. The Vercel routing table sends /api/* to
-# the FastAPI service, preventing CORS and public-backend URL configuration.
 # Some Windows hosts cannot subset icon fonts when the checkout path contains
 # non-ASCII characters. Keeping icons intact makes the build reproducible; the
 # small size trade-off is appropriate for this academic demo.
-flutter build web --release --no-tree-shake-icons --dart-define=API_BASE_URL=/api
+# API_BASE_URL is a public build-time value, normally the Railway API domain
+# (for example https://lumi-api-production.up.railway.app). It deliberately is
+# not a secret and must never contain the Gemini key or a MySQL connection URL.
+if [[ -n "${API_BASE_URL:-}" ]]; then
+  flutter build web --release --no-tree-shake-icons \
+    --dart-define="API_BASE_URL=$API_BASE_URL"
+else
+  flutter build web --release --no-tree-shake-icons
+fi

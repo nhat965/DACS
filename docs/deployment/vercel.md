@@ -1,87 +1,127 @@
-# Triển khai Lumi Beauty trên Vercel
+# Triển khai Lumi Beauty: Vercel Web + Railway API và MySQL
 
-Tài liệu này triển khai một URL công khai duy nhất nhưng giữ frontend, API và
-database ở đúng ranh giới:
+Mô hình này tách đúng vai trò của từng nền tảng:
 
 ```text
-https://<project>.vercel.app
-  ├─ Flutter Web (Vercel Service: lumi_web)
-  ├─ /api/* → FastAPI (Vercel Service: lumi_api)
-  └─ Managed MySQL (không public trực tiếp)
+https://<lumi-web>.vercel.app
+  └─ Flutter Web (static CDN)
+          │ gọi HTTPS qua API_BASE_URL
+          ▼
+https://<lumi-api>.up.railway.app
+  └─ FastAPI + Lumi AI
+          │ private Railway network
+          ▼
+Railway MySQL
+  └─ catalog, tài khoản, đơn hàng, review, tồn kho, hành vi
 ```
 
-Không commit `.env.local`, file dump SQL hay Gemini key.
+Không commit `.env.local`, MySQL dump, Gemini API key hay JWT secret. Một link
+Vercel là đủ cho người dùng cuối; API và database không phụ thuộc máy local.
 
-## 1. Chuẩn bị Managed MySQL
+## 1. Tạo Railway project
 
-Tạo một MySQL instance có thể truy cập từ Vercel, sau đó tạo database riêng cho
-Lumi Beauty. Chạy các migration theo đúng thứ tự từ
-`database/migrations/001_initial_schema.sql` đến
-`database/migrations/008_vietnamese_catalog_currency.sql`.
+1. Vào Railway, tạo **New Project**.
+2. Chọn **Add Service → Database → MySQL** và giữ database ở private network.
+3. Chọn **Add Service → GitHub Repo**, chọn `nhat965/DACS`, nhánh `main`.
+4. Với service FastAPI, để **Root Directory** trống (repository root) để service
+   đọc được catalog trong `datasets/`. File `railway.toml` tại root đã định nghĩa
+   build command, start command và `/health` health check.
+5. Trong service FastAPI, vào **Settings → Networking → Generate Domain**. Lưu
+   domain, ví dụ `https://lumi-api-production.up.railway.app`.
 
-Để giữ nguyên tài khoản, đơn hàng, đánh giá, tồn kho và catalog đang có trên máy
-local, export database local bằng công cụ MySQL rồi import file dump đó vào MySQL
-cloud. File dump có thể chứa dữ liệu người dùng, nên chỉ lưu ở nơi riêng tư; không
-đưa nó vào repository hay upload công khai.
+### Biến môi trường FastAPI trên Railway
 
-Sau khi import, kiểm tra các sản phẩm cần hiển thị có `status = 'ACTIVE'`,
-`stock_quantity > 0` và `ai_ready = TRUE`.
-
-## 2. Tạo Vercel project
-
-1. Import repository GitHub `nhat965/DACS` vào Vercel.
-2. Trong **Project Settings → Build and Deployment**, chọn framework
-   **Services**. Đây là điều kiện để Vercel đọc khối `services` trong
-   `vercel.json`.
-3. Deploy từ nhánh `main`. Vercel tự build Flutter Web và FastAPI thành hai
-   service nội bộ, sau đó route `/api/*` đến FastAPI.
-
-## 3. Biến môi trường Production
-
-Thêm trong **Project Settings → Environment Variables** cho môi trường
-Production (và Preview nếu cần):
+Vào **Variables** của service FastAPI và đặt:
 
 ```dotenv
 RECOMMENDATION_DB_ENABLED=true
-MYSQL_HOST=<cloud-mysql-host>
-MYSQL_PORT=3306
-MYSQL_USER=<cloud-mysql-user>
-MYSQL_PASSWORD=<cloud-mysql-password>
-MYSQL_DATABASE=<cloud-mysql-database>
+# Thay MySQL bằng đúng tên service MySQL trong Railway.
+MYSQL_URL=${{MySQL.MYSQL_URL}}
 
-JWT_SECRET=<long-random-secret>
+JWT_SECRET=<chuỗi-ngẫu-nhiên-dài-không-dùng-lại>
 JWT_TTL_SECONDS=28800
 
-ADMIN_EMAIL=<admin-email>
-ADMIN_PASSWORD=<strong-admin-password>
+ADMIN_EMAIL=<email-admin>
+ADMIN_PASSWORD=<mat-khẩu-admin-mạnh>
 ADMIN_NAME=Admin
 
-GEMINI_API_KEY=<gemini-api-key>
+GEMINI_API_KEY=<Gemini-key>
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_TIMEOUT_SECONDS=15
 
-# Nếu frontend và API dùng cùng domain Vercel, có thể để trống.
-CORS_ALLOW_ORIGINS=
+# Điền sau khi Vercel cấp domain ở bước 3.
+CORS_ALLOW_ORIGINS=https://<lumi-web>.vercel.app
 ```
 
-Không đặt `API_BASE_URL` trên Vercel: build script đã cố định nó là `/api`, giúp
-browser chỉ sử dụng một domain công khai.
+`MYSQL_URL` là private connection string chỉ dùng nội bộ giữa FastAPI và MySQL
+trong cùng Railway project. Không bật Public Access cho MySQL trừ lúc cần import
+dữ liệu từ máy local; API không cần database public.
 
-## 4. Kiểm tra sau deploy
+Sau deploy, mở `https://<lumi-api>.up.railway.app/health`. Endpoint phải trả
+trạng thái `ok` trước khi tiếp tục.
 
-- Mở `https://<project>.vercel.app`.
-- Kiểm tra `https://<project>.vercel.app/api/health` trả `ok`.
-- Đăng ký tài khoản thử, đăng nhập lại sau khi refresh trang và kiểm tra profile.
-- Tạo một đơn, duyệt trạng thái bằng admin rồi kiểm tra lại ở giao diện khách.
-- Đặt một đánh giá và kiểm tra nó còn tồn tại sau khi refresh.
-- Gửi một câu hỏi Lumi AI. Nếu không có Gemini key, UI phải báo rõ AI chưa được
-  cấu hình; catalog, search và shopping không được hỏng.
+## 2. Chuyển database local lên Railway
+
+Để giữ sản phẩm, tài khoản, đơn hàng và review hiện có, export database local
+rồi import vào MySQL Railway. File dump có thể chứa password hashes và dữ liệu
+người dùng, nên chỉ lưu private, không đẩy lên GitHub.
+
+1. Tại MySQL Railway, vào **Settings → Networking** và tạm bật **Public Access**.
+2. Sao chép `MYSQL_PUBLIC_URL` từ tab **Variables**.
+3. Export từ máy local (điều chỉnh host/user/database theo `.env.local`):
+
+```powershell
+mysqldump -h 127.0.0.1 -u root -p --single-transaction --routines --triggers --no-create-db cosmetic_ecommerce > lumi_backup.sql
+```
+
+4. Import file vào Railway bằng public host/port/user/password/database hiển thị
+   trong `MYSQL_PUBLIC_URL`. Có thể dùng MySQL Workbench hoặc `mysql` CLI:
+
+```powershell
+mysql -h <public-host> -P <public-port> -u <user> -p <database> < .\lumi_backup.sql
+```
+
+5. Kiểm tra lại API `/ready`, đăng nhập thử và xem `GET /products`.
+6. Tắt MySQL **Public Access** ngay sau import.
+
+Nếu không cần giữ data cũ, chạy các migration `database/migrations/001` đến
+`008` theo thứ tự rồi import catalog đã được duyệt. Không dùng database fallback
+CSV cho demo có đăng nhập/order/review vì CSV không lưu các nghiệp vụ đó.
+
+## 3. Tạo Vercel project cho Flutter Web
+
+1. Trên Vercel, **Add New → Project → Import** repository `nhat965/DACS`.
+2. Trong **Build and Deployment**, đặt **Root Directory** là `apps/web`.
+3. Chọn Framework Preset **Other**. File `apps/web/vercel.json` đã chỉ định build
+   script và output `build/web`; không dùng Vercel Services.
+4. Trong **Environment Variables**, thêm cho Production (và Preview nếu muốn):
+
+```dotenv
+API_BASE_URL=https://<lumi-api>.up.railway.app
+```
+
+Đây là URL công khai của API, không phải secret. Không đặt Gemini key, MySQL URL
+hay JWT secret trên Vercel.
+
+5. Deploy từ `main`. Vercel clone Flutter SDK lúc build và phục vụ `build/web`.
+6. Sau khi có URL Vercel, quay lại Railway sửa `CORS_ALLOW_ORIGINS` thành chính
+   URL này rồi Redeploy FastAPI.
+
+## 4. Kiểm tra production
+
+- Mở URL Vercel trên máy hoặc điện thoại khác.
+- Đăng ký, refresh trang, đăng nhập lại và chỉnh sửa hồ sơ.
+- Tìm sản phẩm, thêm vào giỏ, tạo đơn, rồi kiểm tra trạng thái đơn.
+- Đăng nhập admin và đổi trạng thái đơn; tài khoản khách phải nhận đúng trạng thái.
+- Gửi câu hỏi Lumi AI. Khi Gemini không khả dụng, UI phải báo lỗi rõ ràng nhưng
+  catalog và shopping vẫn hoạt động.
+- Mở `https://<lumi-api>.up.railway.app/health` và `/ready` để kiểm tra API/DB.
 
 ## Lưu ý vận hành
 
-- Vercel Service/Python runtime là serverless: không lưu file upload, SQLite hay
-  session chỉ trong filesystem của function.
-- MySQL cloud là nguồn dữ liệu bền vững duy nhất cho user, order, review,
-  inventory và behavior events.
-- Giới hạn thời gian function cho service FastAPI đặt 30 giây; chatbot đã có
-  timeout Gemini 15 giây và fallback catalog khi Gemini tạm thời quá tải.
+- Railway MySQL private mặc định; điều này tránh public database không cần thiết.
+- Vercel build nhúng `API_BASE_URL` vào Flutter JavaScript. Mỗi lần đổi API URL,
+  cần Redeploy Vercel để build lại.
+- Khi đổi Vercel domain, cập nhật `CORS_ALLOW_ORIGINS` ở Railway rồi redeploy API.
+- Free tier có thể sleep hoặc giới hạn quota tùy thời điểm/gói dịch vụ. Theo dõi
+  logs và usage của cả hai nền tảng trước buổi demo.

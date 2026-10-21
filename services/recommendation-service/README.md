@@ -139,6 +139,20 @@ python -m unittest discover -s tests -v
 Mặc định service vẫn chạy bằng catalog CSV và dữ liệu behavior truyền trực tiếp
 trong request. Để lưu/đọc hành vi từ MySQL, cấu hình:
 
+Với Railway, tạo biến `MYSQL_URL` trong service FastAPI và đặt giá trị tham
+chiếu sau (đổi `MySQL` nếu service database có tên khác):
+
+```text
+${{ MySQL.MYSQL_PRIVATE_URL }}
+```
+
+Private URL chỉ truy cập được từ service trong cùng Railway project/network.
+Nếu API chạy trên Vercel, dùng URL public của database. Khi được đặt,
+`MYSQL_URL` được ưu tiên hơn các biến `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`,
+`MYSQL_PASSWORD` và `MYSQL_DATABASE`.
+
+Nếu không dùng URL, cấu hình từng biến riêng:
+
 ```powershell
 $env:RECOMMENDATION_DB_ENABLED="true"
 $env:MYSQL_HOST="127.0.0.1"
