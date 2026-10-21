@@ -194,10 +194,10 @@ python .\scripts\share_web.py --host 127.0.0.1 --port 8080 --backend-port 8001
 Mở `http://127.0.0.1:8080/`, chọn **Tư vấn cùng Lumi AI**, rồi thử:
 `Da tôi khô và nhạy cảm, cần routine sáng tối đơn giản để làm dịu và cấp ẩm. Tổng ngân sách 500k, tránh hương liệu. Hãy giải thích cách dùng và lưu ý khi kết hợp.`
 
-## Triển khai cloud: Vercel + Railway
+## Triển khai cloud: Vercel + Aiven
 
 Mô hình production dùng hai Vercel projects: một static Flutter Web và một
-FastAPI Vercel Function. Railway MySQL lưu bền vững user, đơn hàng, đánh giá,
+FastAPI Vercel Function. Aiven for MySQL lưu bền vững user, đơn hàng, đánh giá,
 tồn kho và hành vi. Vì vậy website vẫn hoạt động khi máy phát triển tắt.
 
 ```text
@@ -207,7 +207,7 @@ Người dùng → https://<lumi-web>.vercel.app (Flutter Web)
               https://<lumi-api>.vercel.app (FastAPI Function)
                     │ TLS connection
                     ▼
-                         Railway MySQL
+                         Aiven for MySQL
 ```
 
 Xem các bước deploy, biến môi trường và cách import dữ liệu local ở

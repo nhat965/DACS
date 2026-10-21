@@ -139,15 +139,16 @@ python -m unittest discover -s tests -v
 Mặc định service vẫn chạy bằng catalog CSV và dữ liệu behavior truyền trực tiếp
 trong request. Để lưu/đọc hành vi từ MySQL, cấu hình:
 
-Với Railway, tạo biến `MYSQL_URL` trong service FastAPI và đặt giá trị tham
-chiếu sau (đổi `MySQL` nếu service database có tên khác):
+Với Aiven, lấy connection string ở **Overview → Connection information** rồi
+đặt vào `MYSQL_URL` trong Vercel FastAPI project:
 
 ```text
-${{ MySQL.MYSQL_PRIVATE_URL }}
+mysql://<user>:<url-encoded-password>@<host>:<port>/<database>
 ```
 
-Private URL chỉ truy cập được từ service trong cùng Railway project/network.
-Nếu API chạy trên Vercel, dùng URL public của database. Khi được đặt,
+Vì API chạy trên Vercel, dùng public connection information của Aiven. Aiven
+dùng TLS: thêm `MYSQL_SSL_MODE=VERIFY_CA` và `MYSQL_SSL_CA_PEM` (nội dung CA
+certificate từ Aiven) cùng với `MYSQL_URL`. Khi được đặt,
 `MYSQL_URL` được ưu tiên hơn các biến `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`,
 `MYSQL_PASSWORD` và `MYSQL_DATABASE`.
 

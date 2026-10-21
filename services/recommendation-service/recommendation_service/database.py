@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,12 +34,20 @@ class MySQLSettings:
     password: str = ""
     database: str = "cosmetic_ecommerce"
     enabled: bool = False
+    ssl_ca_pem: str | None = None
+    ssl_verify_cert: bool = False
+    ssl_verify_identity: bool = False
 
     @classmethod
     def from_env(cls, repo_root: Path = REPO_ROOT) -> "MySQLSettings":
         _load_env_file(repo_root / ".env.local")
         enabled_value = os.getenv("RECOMMENDATION_DB_ENABLED", "false").strip().lower()
         mysql_url = os.getenv("MYSQL_URL") or os.getenv("MYSQL_PRIVATE_URL")
+        ssl_ca_pem = os.getenv("MYSQL_SSL_CA_PEM", "").replace("\\n", "\n").strip() or None
+        ssl_verify_cert = bool(ssl_ca_pem) or os.getenv("MYSQL_SSL_MODE", "").strip().upper() in {
+            "VERIFY_CA", "VERIFY_IDENTITY",
+        }
+        ssl_verify_identity = os.getenv("MYSQL_SSL_MODE", "").strip().upper() == "VERIFY_IDENTITY"
         if mysql_url:
             parsed_url = urlsplit(mysql_url)
             if parsed_url.scheme not in {"mysql", "mysql+mysqlconnector"}:
@@ -57,6 +66,9 @@ class MySQLSettings:
                 password=unquote(parsed_url.password or ""),
                 database=database,
                 enabled=enabled_value in {"1", "true", "yes", "on"},
+                ssl_ca_pem=ssl_ca_pem,
+                ssl_verify_cert=ssl_verify_cert,
+                ssl_verify_identity=ssl_verify_identity,
             )
 
         return cls(
@@ -66,6 +78,9 @@ class MySQLSettings:
             password=os.getenv("MYSQL_PASSWORD", ""),
             database=os.getenv("MYSQL_DATABASE", "cosmetic_ecommerce"),
             enabled=enabled_value in {"1", "true", "yes", "on"},
+            ssl_ca_pem=ssl_ca_pem,
+            ssl_verify_cert=ssl_verify_cert,
+            ssl_verify_identity=ssl_verify_identity,
         )
 
 
@@ -325,14 +340,31 @@ class RecommendationDatabase:
                 "mysql-connector-python is required. Install requirements-data-pipeline.txt "
                 "or services/recommendation-service/requirements.txt"
             ) from exc
+        connection_options: dict[str, Any] = {
+            "host": self.settings.host,
+            "port": self.settings.port,
+            "user": self.settings.user,
+            "password": self.settings.password,
+            "database": self.settings.database,
+            "charset": "utf8mb4",
+            "autocommit": False,
+        }
+        if self.settings.ssl_ca_pem:
+            ca_path = Path(tempfile.gettempdir()) / "lumi-aiven-mysql-ca.pem"
+            if not ca_path.exists() or ca_path.read_text(encoding="utf-8") != self.settings.ssl_ca_pem:
+                ca_path.write_text(self.settings.ssl_ca_pem, encoding="utf-8")
+            connection_options.update(
+                ssl_ca=str(ca_path),
+                ssl_verify_cert=self.settings.ssl_verify_cert,
+                ssl_verify_identity=self.settings.ssl_verify_identity,
+            )
+        elif self.settings.ssl_verify_cert:
+            connection_options["ssl_verify_cert"] = True
+        elif os.getenv("MYSQL_SSL_MODE", "").strip().upper() == "REQUIRED":
+            connection_options["ssl_disabled"] = False
+
         return mysql.connector.connect(
-            host=self.settings.host,
-            port=self.settings.port,
-            user=self.settings.user,
-            password=self.settings.password,
-            database=self.settings.database,
-            charset="utf8mb4",
-            autocommit=False,
+            **connection_options,
         )
 
 

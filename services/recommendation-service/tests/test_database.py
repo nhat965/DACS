@@ -46,6 +46,25 @@ class DatabaseMappingTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "host, username, and database"):
                 MySQLSettings.from_env(repo_root=Path("missing-env-root"))
 
+    def test_mysql_settings_accepts_aiven_ca_pem(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "MYSQL_URL": "mysql://avnadmin:password@mysql-example.aivencloud.com:12345/defaultdb",
+                "MYSQL_SSL_CA_PEM": "-----BEGIN CERTIFICATE-----\\nexample\\n-----END CERTIFICATE-----",
+                "MYSQL_SSL_MODE": "VERIFY_CA",
+                "RECOMMENDATION_DB_ENABLED": "true",
+            },
+            clear=True,
+        ):
+            settings = MySQLSettings.from_env(repo_root=Path("missing-env-root"))
+
+        self.assertEqual(settings.host, "mysql-example.aivencloud.com")
+        self.assertEqual(settings.port, 12345)
+        self.assertIn("\nexample\n", settings.ssl_ca_pem or "")
+        self.assertTrue(settings.ssl_verify_cert)
+        self.assertFalse(settings.ssl_verify_identity)
+
     def test_merge_context_prefers_explicit_request_values(self):
         explicit = RecommendationContext(
             skin_type="oily",
