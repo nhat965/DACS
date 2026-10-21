@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{apps/**,data_pipeline/**,database/**,docs/**,services/recommendation-service/tests/**,**/__pycache__/**}"
+    }
+  }
+}

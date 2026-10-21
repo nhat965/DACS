@@ -196,17 +196,16 @@ Mở `http://127.0.0.1:8080/`, chọn **Tư vấn cùng Lumi AI**, rồi thử:
 
 ## Triển khai cloud: Vercel + Railway
 
-Mô hình production dùng **Vercel cho Flutter Web** và **Railway cho FastAPI +
-MySQL**. Vercel phục vụ giao diện qua CDN; Railway lưu bền vững user, đơn hàng,
-đánh giá, tồn kho, hành vi và thực thi Lumi AI. Vì vậy website vẫn hoạt động khi
-máy phát triển tắt.
+Mô hình production dùng hai Vercel projects: một static Flutter Web và một
+FastAPI Vercel Function. Railway MySQL lưu bền vững user, đơn hàng, đánh giá,
+tồn kho và hành vi. Vì vậy website vẫn hoạt động khi máy phát triển tắt.
 
 ```text
 Người dùng → https://<lumi-web>.vercel.app (Flutter Web)
                     │ HTTPS / API_BASE_URL
                     ▼
-              https://<lumi-api>.up.railway.app (FastAPI)
-                    │ Railway private network
+              https://<lumi-api>.vercel.app (FastAPI Function)
+                    │ TLS connection
                     ▼
                          Railway MySQL
 ```
