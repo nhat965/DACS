@@ -94,7 +94,7 @@ build script và output `build/web`.
 4. Thêm Production Environment Variable:
 
 ```dotenv
-API_BASE_URL=https://<lumi-api>.vercel.app
+API_BASE_URL=https://lumiapi-six.vercel.app
 ```
 
 Đây là URL công khai của API, không phải secret. Không đặt Gemini key, MySQL
@@ -103,7 +103,7 @@ URL, CA certificate hay JWT secret ở frontend.
 5. Deploy từ `main`. Sau khi có URL frontend, cập nhật Vercel API variables:
 
 ```dotenv
-CORS_ALLOW_ORIGINS=https://<lumi-web>.vercel.app
+CORS_ALLOW_ORIGINS=https://lumiapi-nzjt.vercel.app
 ```
 
 Rồi redeploy API. `API_BASE_URL` là build-time, nên đổi API URL thì redeploy
