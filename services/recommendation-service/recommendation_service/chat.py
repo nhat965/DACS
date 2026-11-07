@@ -21,7 +21,7 @@ from .safety import evaluate_hard_constraints
 
 
 MAX_HISTORY_MESSAGES = 10
-MAX_CANDIDATES = 8
+MAX_CANDIDATES = 3
 
 
 @dataclass(frozen=True)
@@ -122,8 +122,24 @@ class ChatService:
             categories=extracted.preferred_categories,
             context=effective_context,
         )
-        if focused_candidates:
-            candidates = focused_candidates
+        if extracted.preferred_categories:
+            # A current category request is a hard retrieval scope only when
+            # the catalog can identify that category. This preserves a useful
+            # fallback for incomplete metadata, while preventing a cleanser
+            # from being returned when masks exist but all exceed the budget.
+            category_exists = any(
+                _matches_requested_category(product, extracted.preferred_categories)
+                for product in self.catalog.all()
+            )
+            if focused_candidates:
+                candidates = focused_candidates
+            elif category_exists and effective_context.budget_max is not None:
+                # When a budget is explicit, an empty category result must
+                # stay empty so the model cannot suggest an unrelated item.
+                # Without a budget, keep the ranked fallback: incomplete
+                # metadata or an ingredient exclusion may remove every exact
+                # category match even though a safe adjacent product exists.
+                candidates = ()
         prompt = _build_prompt(
             message=message,
             history=history[-MAX_HISTORY_MESSAGES:],
@@ -140,15 +156,10 @@ class ChatService:
                 context=effective_context,
                 category_focus=extracted.preferred_categories,
             )
-        recommendation_budget = (
-            effective_context.budget_max
-            if generated.consultationType == "routine"
-            else None
-        )
         validated = _validate_recommendations(
             generated,
             candidates,
-            budget_max=recommendation_budget,
+            budget_max=effective_context.budget_max,
         )
         routine = _validate_routine(
             generated.routine,
@@ -261,7 +272,7 @@ def _build_prompt(
     candidates: tuple[Product, ...],
 ) -> str:
     history_data = [
-        {"role": turn.role, "content": turn.content[:2000]}
+        {"role": turn.role, "content": turn.content[:350]}
         for turn in history
     ]
     candidate_data = [_grounded_product(product) for product in candidates]
@@ -303,6 +314,18 @@ def _grounded_product(product: Product) -> dict[str, object]:
     def known(value):
         return value if value not in (None, "", (), []) else "KHÔNG_CÓ_DỮ_LIỆU"
 
+    def excerpt(value, limit: int) -> str:
+        """Keep the LLM context verified but bounded for predictable latency."""
+        resolved = known(value)
+        if not isinstance(resolved, str) or resolved == "KHÔNG_CÓ_DỮ_LIỆU":
+            return resolved
+        normalized = " ".join(resolved.split())
+        return (
+            normalized
+            if len(normalized) <= limit
+            else f"{normalized[:limit].rstrip()}…"
+        )
+
     return {
         "productId": product.product_id,
         "name": product.name,
@@ -311,13 +334,14 @@ def _grounded_product(product: Product) -> dict[str, object]:
         "price": known(product.price),
         "currency": known(product.currency),
         "stockQuantity": known(product.stock_quantity),
-        "benefits": known(product.benefits),
-        "keyIngredients": known(product.key_ingredients),
-        "inciIngredients": known(product.inci_ingredients),
+        "description": excerpt(product.description, 300),
+        "benefits": excerpt(product.benefits, 300),
+        "keyIngredients": excerpt(product.key_ingredients, 220),
+        "inciIngredients": excerpt(product.inci_ingredients, 350),
         "skinTypes": known(product.skin_types),
         "skinConcerns": known(product.skin_concerns),
         "careGoals": known(product.care_goals),
-        "warnings": known(product.warnings),
+        "warnings": excerpt(product.warnings, 350),
     }
 
 
@@ -631,9 +655,13 @@ def _all_matches(text: str, mapping: dict[str, tuple[str, ...]]) -> tuple[str, .
 
 
 def _extract_budget_max(text: str) -> float | None:
-    matches = re.findall(r"(\d+(?:[.,]\d+)?)\s*(trieu|m|k|nghin|ngan|dong|vnd)?", text)
+    matches = re.findall(
+        r"(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?)\s*"
+        r"(trieu|m|k|nghin|ngan|dong|vnd)?",
+        text,
+    )
     for raw_value, unit in reversed(matches):
-        value = float(raw_value.replace(",", "."))
+        value = _parse_vietnamese_number(raw_value)
         if unit in {"trieu", "m"}:
             value *= 1_000_000
         elif unit in {"k", "nghin", "ngan"}:
@@ -643,6 +671,14 @@ def _extract_budget_max(text: str) -> float | None:
         if 10_000 <= value <= 100_000_000:
             return value
     return None
+
+
+def _parse_vietnamese_number(raw_value: str) -> float:
+    """Parse both `500.000`/`500,000` and decimal `1,5 triệu` values."""
+    value = raw_value.strip()
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", value):
+        return float(re.sub(r"[.,]", "", value))
+    return float(value.replace(",", "."))
 
 
 def _extract_avoid_ingredients(message: str) -> tuple[str, ...]:

@@ -151,6 +151,14 @@ class ChatApiTest(unittest.TestCase):
         self.assertIn('"productId":1', prompt)
         self.assertNotIn('"productId":2', prompt)
 
+    def test_vietnamese_thousands_budget_is_parsed(self):
+        from recommendation_service.chat import extract_context
+
+        context = extract_context("Tôi cần mặt nạ làm dịu dưới 500.000 đồng")
+
+        self.assertEqual(context.budget_max, 500_000)
+        self.assertEqual(context.budget_currency, "VND")
+
     def test_natural_long_message_extracts_skin_type(self):
         response = self.client.post(
             "/chat",

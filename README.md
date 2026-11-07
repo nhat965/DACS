@@ -176,7 +176,7 @@ Thêm vào `.env.local` (không commit):
 ```dotenv
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.5-flash-lite
-GEMINI_TIMEOUT_SECONDS=15
+GEMINI_TIMEOUT_SECONDS=30
 ```
 
 Chạy backend và web:

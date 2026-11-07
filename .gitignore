@@ -17,6 +17,7 @@ build/
 target/
 out/
 output/runtime/
+output/
 .playwright-cli/
 .git-backups/
 

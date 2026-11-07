@@ -28,6 +28,13 @@ EVENT_WEIGHTS = {
 
 HARD_EXCLUDE_EVENTS = {"place_order", "review_product"}
 
+# Once a user has supplied enough product-level signals, observed behaviour is
+# a stronger indication of current intent than a static onboarding profile.
+# The thresholds are deliberately conservative so a single accidental click
+# cannot override explicit preferences.
+CONTENT_DOMINANT_EVENT_COUNT = 10
+CONTENT_DOMINANT_SIGNAL = 15.0
+
 
 @dataclass(frozen=True)
 class _ScoredProduct:
@@ -276,8 +283,18 @@ class RecommendationEngine:
 
     def _hybrid_weights(self, behaviors: tuple[BehaviorEvent, ...], context) -> dict[str, float]:
         has_context = _has_scoring_context(context)
-        has_behavior = any(event.product_id is not None for event in behaviors)
+        product_behaviors = tuple(event for event in behaviors if event.product_id is not None)
+        has_behavior = bool(product_behaviors)
         if has_context and has_behavior:
+            behavior_signal = sum(
+                EVENT_WEIGHTS.get(event.event_type, 0.5) * _time_decay(event.occurred_at)
+                for event in product_behaviors
+            )
+            if (
+                len(product_behaviors) >= CONTENT_DOMINANT_EVENT_COUNT
+                or behavior_signal >= CONTENT_DOMINANT_SIGNAL
+            ):
+                return {"knowledge_based": 0.3, "content_based": 0.7}
             return {"knowledge_based": 0.55, "content_based": 0.45}
         if has_context:
             return {"knowledge_based": 1.0, "content_based": 0.0}

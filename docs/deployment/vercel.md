@@ -75,7 +75,7 @@ ADMIN_NAME=Admin
 
 GEMINI_API_KEY=<Gemini-key>
 GEMINI_MODEL=gemini-3.5-flash-lite
-GEMINI_TIMEOUT_SECONDS=15
+GEMINI_TIMEOUT_SECONDS=30
 ```
 
 `MYSQL_SSL_CA_PEM` có thể dán nhiều dòng hoặc dùng `\n` giữa các dòng. Đây là

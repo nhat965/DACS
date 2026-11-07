@@ -300,6 +300,20 @@ class RecommendationEngineTest(unittest.TestCase):
 
         self.assertEqual(response.weights, {"knowledge_based": 0.55, "content_based": 0.45})
 
+    def test_many_product_behaviors_make_content_weight_dominant(self):
+        response = _engine().recommend(
+            RecommendationRequest(
+                limit=2,
+                context=RecommendationContext(skin_concerns=("acne",)),
+                behaviors=tuple(
+                    BehaviorEvent(event_type="view_product", product_id=1)
+                    for _ in range(10)
+                ),
+            )
+        )
+
+        self.assertEqual(response.weights, {"knowledge_based": 0.3, "content_based": 0.7})
+
     def test_recent_behavior_has_more_weight_than_old_behavior(self):
         engine = _engine()
         now = datetime.now(timezone.utc)

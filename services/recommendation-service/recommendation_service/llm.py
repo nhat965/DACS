@@ -162,7 +162,7 @@ class GeminiLLMProvider:
             ) from exc
 
         retry_options = types.HttpRetryOptions(
-            attempts=2,
+            attempts=1,
             initial_delay=0.5,
             max_delay=4,
             exp_base=2,
@@ -193,7 +193,7 @@ class GeminiLLMProvider:
                         "xếp routine đúng thứ tự và nêu cảnh báo an toàn ngắn gọn."
                     ),
                     temperature=0.2,
-                    max_output_tokens=1800,
+                    max_output_tokens=900,
                     response_mime_type="application/json",
                     response_json_schema=self._RESPONSE_SCHEMA,
                 ),
@@ -207,7 +207,11 @@ class GeminiLLMProvider:
             logger.warning("gemini_invalid_structured_response error_type=%s", type(exc).__name__)
             raise LLMProviderError("Gemini returned an invalid structured response") from exc
         except Exception as exc:
-            logger.warning("gemini_request_failed error_type=%s", type(exc).__name__)
+            logger.warning(
+                "gemini_request_failed error_type=%s detail=%s",
+                type(exc).__name__,
+                str(exc),
+            )
             raise LLMProviderError("Gemini is temporarily unavailable") from exc
 
 
@@ -219,9 +223,9 @@ def build_llm_provider_from_env() -> LLMProvider:
         )
     model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip() or "gemini-3.5-flash-lite"
     try:
-        timeout_seconds = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "15"))
+        timeout_seconds = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "30"))
     except ValueError:
-        timeout_seconds = 15
+        timeout_seconds = 30
     try:
         return GeminiLLMProvider(
             api_key=api_key,
